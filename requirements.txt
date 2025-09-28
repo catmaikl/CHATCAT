@@ -4,8 +4,9 @@ Flask-Login==0.6.3
 Flask-WTF==1.1.1
 Werkzeug==2.3.7
 cryptography==41.0.7
-Pillow==10.1.0
+Pillow==10.3.0
 python-dotenv==1.0.0
 Flask-SocketIO==5.3.6
 python-socketio==5.10.0
 eventlet==0.33.5
+gunicorn==21.2.0
