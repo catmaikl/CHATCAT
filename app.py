@@ -3,97 +3,241 @@ eventlet.monkey_patch()
 
 import os
 from dotenv import load_dotenv
+from datetime import datetime
 
-# ЗАГРУЖАЕМ ПЕРЕМЕННЫЕ ИЗ .env ПЕРВЫМ ДЕЛОМ
 load_dotenv()
 
-from flask import Flask, render_template, request, jsonify, session
-from flask_socketio import SocketIO, emit, join_room, leave_room
+from flask import Flask, render_template, request, jsonify
+from flask_socketio import SocketIO
 from flask_login import LoginManager, login_required, current_user, login_user, logout_user
-from models import db, User, Chat, Message, Contact, ChatMember, File
-from auth import login_manager, register_user, authenticate_user, update_user_online_status
-from encryption import encryption_manager
-from config import Config
-from flask_cors import CORS
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config.from_object(Config)
-
-CORS(app, resources={
-    r"/*": {
-        "origins": ["https://chat-for-cats.onrender.com", "http://localhost:5000", "http://127.0.0.1:5000"],
-        "methods": ["GET", "POST"],
-        "allow_headers": ["Content-Type", "Authorization"]
-    }
-})
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-123')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///messenger.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Инициализация расширений
+from models import db
 db.init_app(app)
+
+login_manager = LoginManager()
 login_manager.init_app(app)
-socketio = SocketIO(app, 
-                   cors_allowed_origins="*",
-                   async_mode='eventlet',
-                   logger=True,
-                   engineio_logger=True)
 
-# Создание папок
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'avatars'), exist_ok=True)
-os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'files'), exist_ok=True)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
-@app.route('/')
-def index():
-    if current_user.is_authenticated:
-        return render_template('index.html')
-    return render_template('auth.html')
+# Модели
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(200), nullable=False)
+    first_name = db.Column(db.String(50))
+    last_name = db.Column(db.String(50))
+    bio = db.Column(db.Text)
+    avatar = db.Column(db.String(200))
+    is_online = db.Column(db.Boolean, default=False)
+    last_seen = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-# API маршруты для аутентификации
+class Chat(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100))
+    is_group = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class ChatMember(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    chat_id = db.Column(db.Integer, db.ForeignKey('chat.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+class Message(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    chat_id = db.Column(db.Integer, db.ForeignKey('chat.id'), nullable=False)
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Contact(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    contact_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# Аутентификация
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+# Создаем тестовые данные при первом запуске
+def create_sample_data():
+    with app.app_context():
+        db.create_all()
+        
+        # Создаем тестовых пользователей если их нет
+        if not User.query.first():
+            users = [
+                User(
+                    username='anna', 
+                    email='anna@test.com',
+                    password_hash=generate_password_hash('password123'),
+                    first_name='Анна',
+                    last_name='Иванова'
+                ),
+                User(
+                    username='ivan', 
+                    email='ivan@test.com',
+                    password_hash=generate_password_hash('password123'),
+                    first_name='Иван', 
+                    last_name='Петров'
+                ),
+                User(
+                    username='maria',
+                    email='maria@test.com', 
+                    password_hash=generate_password_hash('password123'),
+                    first_name='Мария',
+                    last_name='Сидорова'
+                )
+            ]
+            db.session.add_all(users)
+            db.session.commit()
+            
+            # Создаем тестовые чаты
+            chat1 = Chat(name='Личный чат', is_group=False)
+            chat2 = Chat(name='Рабочая группа', is_group=True)
+            db.session.add_all([chat1, chat2])
+            db.session.commit()
+            
+            # Добавляем участников в чаты
+            members1 = [
+                ChatMember(chat_id=chat1.id, user_id=users[0].id),
+                ChatMember(chat_id=chat1.id, user_id=users[1].id)
+            ]
+            members2 = [
+                ChatMember(chat_id=chat2.id, user_id=user.id) for user in users
+            ]
+            db.session.add_all(members1 + members2)
+            
+            # Создаем тестовые сообщения
+            messages = [
+                Message(
+                    chat_id=chat1.id,
+                    sender_id=users[0].id,
+                    content='Привет! Как дела?'
+                ),
+                Message(
+                    chat_id=chat1.id, 
+                    sender_id=users[1].id,
+                    content='Привет! Все отлично, спасибо!'
+                ),
+                Message(
+                    chat_id=chat2.id,
+                    sender_id=users[2].id, 
+                    content='Всем привет! Напоминаю о встрече завтра в 10:00'
+                )
+            ]
+            db.session.add_all(messages)
+            
+            # Создаем контакты
+            contacts = [
+                Contact(user_id=users[0].id, contact_id=users[1].id),
+                Contact(user_id=users[0].id, contact_id=users[2].id)
+            ]
+            db.session.add_all(contacts)
+            
+            db.session.commit()
+            print("✅ Sample data created!")
+
+# Маршруты аутентификации
 @app.route('/api/register', methods=['POST'])
 def api_register():
     data = request.get_json()
-    success, result = register_user(
+    
+    if User.query.filter_by(username=data['username']).first():
+        return jsonify({'status': 'error', 'message': 'Пользователь с таким именем уже существует'})
+    
+    if User.query.filter_by(email=data['email']).first():
+        return jsonify({'status': 'error', 'message': 'Пользователь с таким email уже существует'})
+    
+    user = User(
         username=data['username'],
         email=data['email'],
-        password=data['password'],
+        password_hash=generate_password_hash(data['password']),
         first_name=data['first_name'],
-        last_name=data.get('last_name'),
-        phone=data.get('phone')
+        last_name=data.get('last_name')
     )
     
-    if success:
-        login_user(result)
-        return jsonify({'status': 'success', 'user': {
-            'id': result.id,
-            'username': result.username,
-            'first_name': result.first_name
-        }})
-    else:
-        return jsonify({'status': 'error', 'message': result})
+    db.session.add(user)
+    db.session.commit()
+    
+    login_user(user)
+    return jsonify({
+        'status': 'success', 
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'first_name': user.first_name
+        }
+    })
 
 @app.route('/api/login', methods=['POST'])
 def api_login():
     data = request.get_json()
-    user = authenticate_user(data['username'], data['password'])
-    if user:
+    user = User.query.filter_by(username=data['username']).first()
+    
+    if user and check_password_hash(user.password_hash, data['password']):
+        user.is_online = True
+        user.last_seen = datetime.utcnow()
+        db.session.commit()
         login_user(user)
-        return jsonify({'status': 'success', 'user': {
-            'id': user.id,
-            'username': user.username,
-            'first_name': user.first_name
-        }})
+        return jsonify({
+            'status': 'success', 
+            'user': {
+                'id': user.id,
+                'username': user.username, 
+                'first_name': user.first_name
+            }
+        })
+    
     return jsonify({'status': 'error', 'message': 'Неверные учетные данные'})
 
 @app.route('/api/logout', methods=['POST'])
 @login_required
 def api_logout():
-    update_user_online_status(current_user.id, False)
+    current_user.is_online = False
+    current_user.last_seen = datetime.utcnow()
+    db.session.commit()
     logout_user()
     return jsonify({'status': 'success'})
 
+# Профиль пользователя
+@app.route('/api/user/profile', methods=['PUT'])
+@login_required
+def update_user_profile():
+    data = request.get_json()
+    
+    current_user.first_name = data.get('first_name', current_user.first_name)
+    current_user.last_name = data.get('last_name', current_user.last_name)
+    current_user.bio = data.get('bio', current_user.bio)
+    
+    db.session.commit()
+    
+    return jsonify({
+        'status': 'success', 
+        'message': 'Профиль обновлен',
+        'user': {
+            'id': current_user.id,
+            'username': current_user.username,
+            'first_name': current_user.first_name,
+            'last_name': current_user.last_name,
+            'bio': current_user.bio
+        }
+    })
+
 @app.route('/api/user', methods=['GET'])
 @login_required
-def get_current_user_info():
-    """Получение информации о текущем пользователе"""
+def get_user_profile():
     return jsonify({
         'status': 'success',
         'user': {
@@ -101,15 +245,17 @@ def get_current_user_info():
             'username': current_user.username,
             'first_name': current_user.first_name,
             'last_name': current_user.last_name,
-            'email': current_user.email
+            'email': current_user.email,
+            'bio': current_user.bio,
+            'avatar': current_user.avatar,
+            'is_online': current_user.is_online
         }
     })
 
-# API маршруты для чатов
+# Чаты
 @app.route('/api/chats', methods=['GET'])
 @login_required
 def get_chats():
-    """Получение списка чатов пользователя"""
     user_chats = Chat.query.join(ChatMember).filter(
         ChatMember.user_id == current_user.id
     ).all()
@@ -120,49 +266,51 @@ def get_chats():
             Message.created_at.desc()
         ).first()
         
-        chat_data = {
+        # Получаем название чата (для личных чатов - имя собеседника)
+        chat_name = chat.name
+        if not chat.is_group:
+            other_member = ChatMember.query.filter(
+                ChatMember.chat_id == chat.id,
+                ChatMember.user_id != current_user.id
+            ).first()
+            if other_member:
+                other_user = User.query.get(other_member.user_id)
+                chat_name = f"{other_user.first_name} {other_user.last_name}"
+        
+        chats_data.append({
             'id': chat.id,
-            'name': chat.name,
+            'name': chat_name,
             'is_group': chat.is_group,
-            'avatar': chat.avatar,
             'last_message': {
-                'content': encryption_manager.decrypt_message(last_message.content) if last_message and last_message.is_encrypted else last_message.content if last_message else '',
+                'content': last_message.content if last_message else '',
                 'sender_id': last_message.sender_id if last_message else None,
                 'created_at': last_message.created_at.isoformat() if last_message else None
-            } if last_message else None,
+            },
             'unread_count': Message.query.filter_by(
                 chat_id=chat.id, 
                 is_read=False
             ).filter(Message.sender_id != current_user.id).count()
-        }
-        chats_data.append(chat_data)
+        })
     
     return jsonify({'status': 'success', 'chats': chats_data})
 
 @app.route('/api/chats/<int:chat_id>/messages', methods=['GET'])
 @login_required
 def get_chat_messages(chat_id):
-    """Получение сообщений чата"""
-    page = request.args.get('page', 1, type=int)
-    per_page = 50
-    
     messages = Message.query.filter_by(chat_id=chat_id).order_by(
-        Message.created_at.desc()
-    ).paginate(page=page, per_page=per_page, error_out=False)
+        Message.created_at.asc()
+    ).all()
     
     messages_data = []
-    for message in messages.items:
-        decrypted_content = encryption_manager.decrypt_message(message.content) if message.is_encrypted else message.content
-        
+    for message in messages:
+        sender = User.query.get(message.sender_id)
         messages_data.append({
             'id': message.id,
-            'content': decrypted_content,
-            'content_type': message.content_type,
+            'content': message.content,
             'sender_id': message.sender_id,
-            'is_encrypted': message.is_encrypted,
+            'sender_name': f"{sender.first_name} {sender.last_name}",
             'is_read': message.is_read,
-            'created_at': message.created_at.isoformat(),
-            'file_path': message.file_path
+            'created_at': message.created_at.isoformat()
         })
     
     # Помечаем сообщения как прочитанные
@@ -171,33 +319,21 @@ def get_chat_messages(chat_id):
     ).update({'is_read': True})
     db.session.commit()
     
-    return jsonify({
-        'status': 'success',
-        'messages': messages_data[::-1],  # Возвращаем в правильном порядке
-        'has_next': messages.has_next,
-        'has_prev': messages.has_prev
-    })
+    return jsonify({'status': 'success', 'messages': messages_data})
 
 @app.route('/api/chats/<int:chat_id>/send', methods=['POST'])
 @login_required
 def send_message(chat_id):
-    """Отправка сообщения"""
     data = request.get_json()
     content = data.get('content')
-    content_type = data.get('content_type', 'text')
     
     if not content:
         return jsonify({'status': 'error', 'message': 'Сообщение не может быть пустым'})
     
-    # Шифруем сообщение
-    encrypted_content = encryption_manager.encrypt_message(content)
-    
     message = Message(
         chat_id=chat_id,
         sender_id=current_user.id,
-        content=encrypted_content,
-        content_type=content_type,
-        is_encrypted=True
+        content=content
     )
     
     db.session.add(message)
@@ -207,29 +343,28 @@ def send_message(chat_id):
     socketio.emit('new_message', {
         'id': message.id,
         'content': content,
-        'content_type': content_type,
         'sender_id': current_user.id,
+        'sender_name': f"{current_user.first_name} {current_user.last_name}",
         'chat_id': chat_id,
         'created_at': message.created_at.isoformat()
     }, room=f'chat_{chat_id}')
     
     return jsonify({'status': 'success', 'message_id': message.id})
 
+# Контакты
 @app.route('/api/contacts', methods=['GET'])
 @login_required
 def get_contacts():
-    """Получение списка контактов"""
     contacts = Contact.query.filter_by(user_id=current_user.id).all()
     
     contacts_data = []
     for contact in contacts:
-        user = contact.contact_user
+        user = User.query.get(contact.contact_id)
         contacts_data.append({
             'id': user.id,
             'username': user.username,
             'first_name': user.first_name,
             'last_name': user.last_name,
-            'avatar': user.avatar,
             'is_online': user.is_online,
             'last_seen': user.last_seen.isoformat()
         })
@@ -239,7 +374,6 @@ def get_contacts():
 @app.route('/api/contacts/add', methods=['POST'])
 @login_required
 def add_contact():
-    """Добавление контакта"""
     data = request.get_json()
     contact_username = data.get('username')
     
@@ -247,7 +381,9 @@ def add_contact():
     if not contact_user:
         return jsonify({'status': 'error', 'message': 'Пользователь не найден'})
     
-    # Проверяем, не добавлен ли уже контакт
+    if contact_user.id == current_user.id:
+        return jsonify({'status': 'error', 'message': 'Нельзя добавить себя в контакты'})
+    
     existing_contact = Contact.query.filter_by(
         user_id=current_user.id,
         contact_id=contact_user.id
@@ -262,79 +398,102 @@ def add_contact():
     # Создаем приватный чат
     chat = Chat(name=f"Чат с {contact_user.username}", is_group=False)
     db.session.add(chat)
-    db.session.flush()  # Получаем ID чата
+    db.session.flush()
     
     # Добавляем участников
-    member1 = ChatMember(chat_id=chat.id, user_id=current_user.id, role='member')
-    member2 = ChatMember(chat_id=chat.id, user_id=contact_user.id, role='member')
+    member1 = ChatMember(chat_id=chat.id, user_id=current_user.id)
+    member2 = ChatMember(chat_id=chat.id, user_id=contact_user.id)
     db.session.add_all([member1, member2])
     
     db.session.commit()
     
-    return jsonify({'status': 'success', 'contact_id': contact_user.id})
+    return jsonify({'status': 'success', 'contact_id': contact_user.id, 'chat_id': chat.id})
 
-# WebSocket обработчики
+@app.route('/api/chats/create', methods=['POST'])
+@login_required
+def create_chat():
+    data = request.get_json()
+    contact_id = data.get('contact_id')
+    
+    contact_user = User.query.get(contact_id)
+    if not contact_user:
+        return jsonify({'status': 'error', 'message': 'Пользователь не найден'})
+    
+    # Проверяем есть ли уже чат
+    existing_chat = db.session.query(Chat).join(ChatMember).filter(
+        ChatMember.user_id == current_user.id
+    ).join(ChatMember, Chat.id == ChatMember.chat_id).filter(
+        ChatMember.user_id == contact_id
+    ).filter(Chat.is_group == False).first()
+    
+    if existing_chat:
+        return jsonify({'status': 'success', 'chat_id': existing_chat.id, 'exists': True})
+    
+    # Создаем новый чат
+    chat = Chat(name=f"Чат с {contact_user.username}", is_group=False)
+    db.session.add(chat)
+    db.session.flush()
+    
+    member1 = ChatMember(chat_id=chat.id, user_id=current_user.id)
+    member2 = ChatMember(chat_id=chat.id, user_id=contact_id)
+    db.session.add_all([member1, member2])
+    
+    db.session.commit()
+    
+    return jsonify({'status': 'success', 'chat_id': chat.id})
+
+# WebSocket
 @socketio.on('connect')
 @login_required
 def handle_connect():
-    """Обработчик подключения WebSocket"""
-    update_user_online_status(current_user.id, True)
+    current_user.is_online = True
+    db.session.commit()
     emit('user_online', {'user_id': current_user.id}, broadcast=True)
 
 @socketio.on('disconnect')
 @login_required
 def handle_disconnect():
-    """Обработчик отключения WebSocket"""
-    update_user_online_status(current_user.id, False)
+    current_user.is_online = False
+    current_user.last_seen = datetime.utcnow()
+    db.session.commit()
     emit('user_offline', {'user_id': current_user.id}, broadcast=True)
 
 @socketio.on('join_chat')
 @login_required
 def handle_join_chat(data):
-    """Присоединение к комнате чата"""
-    chat_id = data['chat_id']
-    join_room(f'chat_{chat_id}')
-    emit('user_joined', {
-        'user_id': current_user.id,
-        'chat_id': chat_id
-    }, room=f'chat_{chat_id}')
-
-@socketio.on('leave_chat')
-@login_required
-def handle_leave_chat(data):
-    """Выход из комнаты чата"""
-    chat_id = data['chat_id']
-    leave_room(f'chat_{chat_id}')
-    emit('user_left', {
-        'user_id': current_user.id,
-        'chat_id': chat_id
-    }, room=f'chat_{chat_id}')
+    join_room(f'chat_{data["chat_id"]}')
 
 @socketio.on('typing_start')
 @login_required
 def handle_typing_start(data):
-    """Пользователь начал печатать"""
     emit('user_typing', {
         'user_id': current_user.id,
+        'user_name': f"{current_user.first_name} {current_user.last_name}",
         'chat_id': data['chat_id']
     }, room=f"chat_{data['chat_id']}", include_self=False)
 
 @socketio.on('typing_stop')
 @login_required
 def handle_typing_stop(data):
-    """Пользователь закончил печатать"""
     emit('user_stopped_typing', {
         'user_id': current_user.id,
         'chat_id': data['chat_id']
     }, room=f"chat_{data['chat_id']}", include_self=False)
 
-# Health check endpoint
-@app.route('/health')
-def health_check():
-    return jsonify({'status': 'healthy', 'message': 'Little Kitten Chat is running!'})
+# Основные маршруты
+@app.route('/')
+def index():
+    if current_user.is_authenticated:
+        return render_template('index.html')
+    return render_template('auth.html')
 
+@app.route('/health')
+def health():
+    return jsonify({"status": "healthy", "database": "connected"})
+
+# Запуск приложения
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-    port = int(os.environ.get('PORT', 10000))
-    socketio.run(app, host='0.0.0.0', port=port, debug=True)
+    create_sample_data()
+    port = int(os.environ.get('PORT', 5000))
+    print(f"🚀 Starting server on port {port}")
+    socketio.run(app, host='0.0.0.0', port=port, debug=False)
