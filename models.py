@@ -31,6 +31,9 @@ class Contact(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     contact_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Отношения
+    contact_user = db.relationship('User', foreign_keys=[contact_id], backref='contacted_by')
 
 class Chat(db.Model):
     id = db.Column(db.Integer, primary_key=True)

@@ -48,4 +48,5 @@ class EncryptionManager:
         return output_path
 
 # Создание менеджера шифрования
-encryption_manager = EncryptionManager(os.environ.get('ENCRYPTION_KEY'))
+encryption_key = os.environ.get('ENCRYPTION_KEY') or 'default-encryption-key-change-in-production'
+encryption_manager = EncryptionManager(encryption_key)

@@ -21,9 +21,13 @@ class TelegramMessenger {
             const response = await fetch('/api/user');
             if (response.ok) {
                 const userData = await response.json();
-                this.currentUser = userData;
-                this.showMainInterface();
-                this.loadInitialData();
+                if (userData.status === 'success') {
+                    this.currentUser = userData.user;
+                    this.showMainInterface();
+                    this.loadInitialData();
+                } else {
+                    this.showAuthInterface();
+                }
             } else {
                 this.showAuthInterface();
             }
@@ -34,9 +38,9 @@ class TelegramMessenger {
     }
 
     showAuthInterface() {
-        // Здесь будет код для показа интерфейса аутентификации
         document.getElementById('loadingScreen').style.display = 'none';
-        // Показываем форму входа/регистрации
+        // Перенаправляем на страницу аутентификации
+        window.location.href = '/';
     }
 
     showMainInterface() {
@@ -361,6 +365,24 @@ class TelegramMessenger {
         const contactsList = document.getElementById('newChatContacts');
         contactsList.innerHTML = '';
 
+        // Кнопка добавления нового контакта
+        const addContactDiv = document.createElement('div');
+        addContactDiv.className = 'contact-item add-contact';
+        addContactDiv.innerHTML = `
+            <div class="contact-avatar">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="#0088cc">
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                </svg>
+            </div>
+            <div class="contact-details">
+                <div class="contact-name">Добавить контакт</div>
+                <div class="contact-status">Найти пользователя по имени</div>
+            </div>
+        `;
+        addContactDiv.addEventListener('click', () => this.showAddContactForm());
+        contactsList.appendChild(addContactDiv);
+
+        // Существующие контакты
         this.contacts.forEach(contact => {
             const div = document.createElement('div');
             div.className = 'contact-item';
@@ -377,6 +399,45 @@ class TelegramMessenger {
             div.addEventListener('click', () => this.startChatWithContact(contact.id));
             contactsList.appendChild(div);
         });
+    }
+
+    showAddContactForm() {
+        const username = prompt('Введите имя пользователя для добавления в контакты:');
+        if (username && username.trim()) {
+            this.addContact(username.trim());
+        }
+    }
+
+    async addContact(username) {
+        try {
+            const response = await fetch('/api/contacts/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: username
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                alert('Контакт успешно добавлен!');
+                await this.loadContacts();
+                this.hideModals();
+                // Если создался чат, переходим к нему
+                if (data.chat_id) {
+                    await this.loadChats();
+                    this.selectChat(data.chat_id);
+                }
+            } else {
+                alert('Ошибка: ' + data.message);
+            }
+        } catch (error) {
+            console.error('Failed to add contact:', error);
+            alert('Ошибка при добавлении контакта');
+        }
     }
 
     async startChatWithContact(contactId) {
