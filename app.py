@@ -31,38 +31,8 @@ os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'files'), exist_ok=True)
 @app.route('/')
 def index():
     if current_user.is_authenticated:
-        return render_template('index.html')
-    return """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Little Kitten Chat</title>
-                <style>
-                    body { 
-                        font-family: Arial, sans-serif; 
-                        text-align: center; 
-                        padding: 50px; 
-                        background: linear-gradient(135deg, #667eea, #764ba2);
-                        color: white;
-                    }
-                    .container {
-                        background: white;
-                        padding: 40px;
-                        border-radius: 15px;
-                        color: #333;
-                        display: inline-block;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <h1>🐱 Little Kitten Chat</h1>
-                    <p>Приложение запущено успешно!</p>
-                    <p><a href="/api/chats" style="color: #667eea;">Перейти к API</a></p>
-                </div>
-            </body>
-            </html>
-        """
+        return render_template('templates/index.html')
+    return render_template('templates/auth.html')
 
 # API маршруты для аутентификации
 @app.route('/api/register', methods=['POST'])
