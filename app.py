@@ -11,14 +11,27 @@ from models import db, User, Chat, Message, Contact, ChatMember, File
 from auth import login_manager, register_user, authenticate_user, update_user_online_status
 from encryption import encryption_manager
 from config import Config
+from flask_cors import CORS
 
 app = Flask(__name__)
 app.config.from_object(Config)
 
+CORS(app, resources={
+    r"/*": {
+        "origins": ["https://chat-for-cats.onrender.com", "http://localhost:5000", "http://127.0.0.1:5000"],
+        "methods": ["GET", "POST"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
+
 # Инициализация расширений
 db.init_app(app)
 login_manager.init_app(app)
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, 
+                   cors_allowed_origins="*",
+                   async_mode='eventlet',
+                   logger=True,
+                   engineio_logger=True)
 
 # Создание папок
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
