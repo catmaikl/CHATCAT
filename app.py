@@ -9,6 +9,8 @@ import os
 from datetime import datetime
 import uuid
 
+from routes import *
+
 app = Flask(__name__)
 app.config.from_object(Config)
 
@@ -25,8 +27,8 @@ os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'files'), exist_ok=True)
 @app.route('/')
 def index():
     if current_user.is_authenticated:
-        return render_template('templates/index.html')
-    return render_template('templates/auth.html')
+        return render_template('index.html')
+    return render_template('auth.html')
 
 # API маршруты для аутентификации
 @app.route('/api/register', methods=['POST'])
@@ -70,6 +72,35 @@ def api_logout():
     update_user_online_status(current_user.id, False)
     logout_user()
     return jsonify({'status': 'success'})
+
+@app.route('/api/user', methods=['GET'])
+@login_required
+def get_current_user():
+    """Get current user data for the frontend"""
+    return jsonify({
+        'id': current_user.id,
+        'username': current_user.username,
+        'email': current_user.email,
+        'first_name': current_user.first_name,
+        'last_name': current_user.last_name,
+        'phone': current_user.phone,
+        'is_online': current_user.is_online,
+        'last_seen': current_user.last_seen.isoformat() if current_user.last_seen else None
+    })
+
+@app.route('/api/users', methods=['GET'])
+@login_required
+def get_users():
+    """Get list of all users (for chat)"""
+    users = User.query.all()
+    return jsonify([{
+        'id': user.id,
+        'username': user.username,
+        'first_name': user.first_name,
+        'last_name': user.last_name,
+        'is_online': user.is_online,
+        'last_seen': user.last_seen.isoformat() if user.last_seen else None
+    } for user in users])
 
 # API маршруты для чатов
 @app.route('/api/chats', methods=['GET'])

@@ -10,21 +10,25 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(200), nullable=False)
+    password_hash = db.Column(db.String(120), nullable=False)
+    first_name = db.Column(db.String(80), nullable=False)
+    last_name = db.Column(db.String(80))
     phone = db.Column(db.String(20))
-    first_name = db.Column(db.String(50))
-    last_name = db.Column(db.String(50))
-    bio = db.Column(db.Text)
-    avatar = db.Column(db.String(200))
     is_online = db.Column(db.Boolean, default=False)
     last_seen = db.Column(db.DateTime, default=datetime.utcnow)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Отношения
+    # Relationships
     sent_messages = db.relationship('Message', foreign_keys='Message.sender_id', backref='sender', lazy='dynamic')
     received_messages = db.relationship('Message', foreign_keys='Message.receiver_id', backref='receiver', lazy='dynamic')
-    contacts = db.relationship('Contact', foreign_keys='Contact.user_id', backref='user', lazy='dynamic')
-    chat_members = db.relationship('ChatMember', backref='user', lazy='dynamic')
+
+class Message(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    receiver_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    is_file = db.Column(db.Boolean, default=False)
+    file_path = db.Column(db.String(200))
 
 class Contact(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -51,19 +55,6 @@ class ChatMember(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     role = db.Column(db.String(20), default='member')  # member, admin, owner
     joined_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-class Message(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    chat_id = db.Column(db.Integer, db.ForeignKey('chat.id'), nullable=False)
-    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    receiver_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    content = db.Column(db.Text, nullable=False)
-    content_type = db.Column(db.String(20), default='text')  # text, image, file, voice
-    file_path = db.Column(db.String(200))
-    is_encrypted = db.Column(db.Boolean, default=True)
-    is_read = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class File(db.Model):
     id = db.Column(db.Integer, primary_key=True)
