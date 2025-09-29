@@ -25,8 +25,8 @@ os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'files'), exist_ok=True)
 @app.route('/')
 def index():
     if current_user.is_authenticated:
-        return render_template('templates/index.html')
-    return render_template('templates/auth.html')
+        return render_template('index.html')
+    return render_template('auth.html')
 
 # API маршруты для аутентификации
 @app.route('/api/register', methods=['POST'])
