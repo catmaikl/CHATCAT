@@ -1,15 +1,16 @@
-from flask import Flask, render_template, request, jsonify, send_file
+import os
+from dotenv import load_dotenv
+
+# ЗАГРУЖАЕМ ПЕРЕМЕННЫЕ ИЗ .env ПЕРВЫМ ДЕЛОМ
+load_dotenv()
+
+from flask import Flask, render_template, request, jsonify, session
 from flask_socketio import SocketIO, emit, join_room, leave_room
-from flask_login import login_required, current_user, login_user, logout_user
+from flask_login import LoginManager, login_required, current_user, login_user, logout_user
 from models import db, User, Chat, Message, Contact, ChatMember, File
 from auth import login_manager, register_user, authenticate_user, update_user_online_status
 from encryption import encryption_manager
 from config import Config
-import os
-from datetime import datetime
-import uuid
-
-from routes import *
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -75,32 +76,18 @@ def api_logout():
 
 @app.route('/api/user', methods=['GET'])
 @login_required
-def get_current_user():
-    """Get current user data for the frontend"""
+def get_current_user_info():
+    """Получение информации о текущем пользователе"""
     return jsonify({
-        'id': current_user.id,
-        'username': current_user.username,
-        'email': current_user.email,
-        'first_name': current_user.first_name,
-        'last_name': current_user.last_name,
-        'phone': current_user.phone,
-        'is_online': current_user.is_online,
-        'last_seen': current_user.last_seen.isoformat() if current_user.last_seen else None
+        'status': 'success',
+        'user': {
+            'id': current_user.id,
+            'username': current_user.username,
+            'first_name': current_user.first_name,
+            'last_name': current_user.last_name,
+            'email': current_user.email
+        }
     })
-
-@app.route('/api/users', methods=['GET'])
-@login_required
-def get_users():
-    """Get list of all users (for chat)"""
-    users = User.query.all()
-    return jsonify([{
-        'id': user.id,
-        'username': user.username,
-        'first_name': user.first_name,
-        'last_name': user.last_name,
-        'is_online': user.is_online,
-        'last_seen': user.last_seen.isoformat() if user.last_seen else None
-    } for user in users])
 
 # API маршруты для чатов
 @app.route('/api/chats', methods=['GET'])
@@ -123,7 +110,7 @@ def get_chats():
             'is_group': chat.is_group,
             'avatar': chat.avatar,
             'last_message': {
-                'content': encryption_manager.decrypt_message(last_message.content) if last_message else '',
+                'content': encryption_manager.decrypt_message(last_message.content) if last_message and last_message.is_encrypted else last_message.content if last_message else '',
                 'sender_id': last_message.sender_id if last_message else None,
                 'created_at': last_message.created_at.isoformat() if last_message else None
             } if last_message else None,
@@ -325,7 +312,13 @@ def handle_typing_stop(data):
         'chat_id': data['chat_id']
     }, room=f"chat_{data['chat_id']}", include_self=False)
 
+# Health check endpoint
+@app.route('/health')
+def health_check():
+    return jsonify({'status': 'healthy', 'message': 'Little Kitten Chat is running!'})
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 10000))
+    socketio.run(app, host='0.0.0.0', port=port, debug=True)
