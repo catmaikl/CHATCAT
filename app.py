@@ -52,11 +52,22 @@ db.init_app(app)
 login_manager.init_app(app)
 
 # Настройка rate limiting
-limiter = Limiter(
-    app,
-    key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"]
-)
+try:
+    limiter = Limiter(
+        key_func=get_remote_address,
+        default_limits=["200 per day", "50 per hour"],
+        storage_uri=app.config.get('RATELIMIT_STORAGE_URL', 'memory://')
+    )
+    limiter.init_app(app)
+except Exception as e:
+    logger.warning(f"Rate limiting disabled due to error: {str(e)}")
+    # Create a dummy limiter that doesn't actually limit
+    class DummyLimiter:
+        def limit(self, *args, **kwargs):
+            def decorator(f):
+                return f
+            return decorator
+    limiter = DummyLimiter()
 
 # Настройка SocketIO с ограниченными источниками
 socketio = SocketIO(app, 

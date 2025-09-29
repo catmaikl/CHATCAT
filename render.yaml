@@ -3,11 +3,16 @@ services:
     name: little-kitten-chat
     env: python
     plan: free
-    runtime: python 3.11.8
     buildCommand: pip install -r requirements.txt
-    startCommand: python app.py
+    startCommand: gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT wsgi:application
     envVars:
       - key: SECRET_KEY
         generateValue: true
       - key: ENCRYPTION_KEY
         generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: LOG_LEVEL
+        value: "INFO"
+      - key: HTTPS
+        value: "True"
