@@ -483,7 +483,7 @@ def uploaded_file(filename):
 def get_contacts():
     """Получение списка контактов"""
     try:
-        contacts = Contact.query.filter_by(user_id=current_user.id).all()
+        contacts = current_user.user_contacts.all()
         
         contacts_data = []
         for contact in contacts:

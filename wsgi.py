@@ -19,6 +19,8 @@ from app import app, socketio, db
 # Create database tables
 with app.app_context():
     try:
+        # Drop and recreate tables to fix relationship conflicts
+        db.drop_all()
         db.create_all()
         print("Database tables created successfully")
     except Exception as e:

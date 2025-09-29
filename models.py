@@ -23,7 +23,7 @@ class User(UserMixin, db.Model):
     # Отношения
     sent_messages = db.relationship('Message', foreign_keys='Message.sender_id', backref='message_sender', lazy='dynamic')
     received_messages = db.relationship('Message', foreign_keys='Message.receiver_id', backref='message_receiver', lazy='dynamic')
-    contacts = db.relationship('Contact', foreign_keys='Contact.user_id', backref='contact_user', lazy='dynamic')
+    user_contacts = db.relationship('Contact', foreign_keys='Contact.user_id', backref='owner_user', lazy='dynamic')
     chat_memberships = db.relationship('ChatMember', backref='member_user', lazy='dynamic')
 
 class Contact(db.Model):
@@ -33,7 +33,7 @@ class Contact(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Отношения
-    contact_user = db.relationship('User', foreign_keys=[contact_id], backref='contacted_by')
+    contact_user = db.relationship('User', foreign_keys=[contact_id], backref='contacted_by_users')
 
 class Chat(db.Model):
     id = db.Column(db.Integer, primary_key=True)
