@@ -26,17 +26,42 @@ class ChatFeatures {
 
     // ========== ТЕМЫ ==========
     initializeThemes() {
+        console.log('Initializing themes...');
+        
+        // Проверяем, не добавлена ли уже кнопка
+        if (document.querySelector('.theme-toggle')) {
+            console.log('Theme toggle button already exists');
+            return;
+        }
+        
         // Создаем переключатель тем
         const themeToggle = document.createElement('button');
         themeToggle.className = 'icon-btn theme-toggle';
         themeToggle.innerHTML = '🌙';
         themeToggle.title = 'Переключить тему';
+        themeToggle.style.fontSize = '18px';
         themeToggle.addEventListener('click', () => this.toggleTheme());
         
-        // Добавляем в заголовок
+        // Добавляем в заголовок как первую кнопку
         const headerActions = document.querySelector('.header-actions');
         if (headerActions) {
             headerActions.insertBefore(themeToggle, headerActions.firstChild);
+            console.log('Theme toggle button added to header');
+        } else {
+            console.error('Header actions not found, trying alternative approach...');
+            
+            // Альтернативный подход - создаем контейнер для кнопок
+            const sidebarHeader = document.querySelector('.sidebar-header');
+            if (sidebarHeader) {
+                const userInfo = sidebarHeader.querySelector('.user-info');
+                if (userInfo) {
+                    const actionsContainer = document.createElement('div');
+                    actionsContainer.className = 'header-actions';
+                    actionsContainer.appendChild(themeToggle);
+                    sidebarHeader.appendChild(actionsContainer);
+                    console.log('Created header actions container and added theme toggle');
+                }
+            }
         }
     }
 
@@ -754,7 +779,16 @@ class ChatFeatures {
 
 // Инициализация расширенных функций
 document.addEventListener('DOMContentLoaded', () => {
-    if (window.messenger) {
-        window.chatFeatures = new ChatFeatures(window.messenger);
-    }
+    // Ждем, пока основной мессенджер будет готов
+    const initFeatures = () => {
+        if (window.messenger) {
+            console.log('Initializing chat features...');
+            window.chatFeatures = new ChatFeatures(window.messenger);
+        } else {
+            console.log('Messenger not ready, retrying in 500ms...');
+            setTimeout(initFeatures, 500);
+        }
+    };
+    
+    initFeatures();
 });

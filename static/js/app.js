@@ -47,6 +47,7 @@ class TelegramMessenger {
         document.getElementById('loadingScreen').style.display = 'none';
         document.getElementById('mainInterface').style.display = 'flex';
         this.updateUserInfo();
+        this.loadTheme();
     }
 
     updateUserInfo() {
@@ -60,6 +61,12 @@ class TelegramMessenger {
         // Кнопки боковой панели
         document.getElementById('newChatBtn').addEventListener('click', () => this.showNewChatModal());
         document.getElementById('settingsBtn').addEventListener('click', () => this.showSettingsModal());
+        
+        // Кнопка переключения темы
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+        if (themeToggleBtn) {
+            themeToggleBtn.addEventListener('click', () => this.toggleTheme());
+        }
         
         // Вкладки
         document.querySelectorAll('.tab').forEach(tab => {
@@ -669,6 +676,40 @@ class TelegramMessenger {
                 statusElement.style.color = isOnline ? '#4CAF50' : '#666';
             }
         });
+    }
+
+    toggleTheme() {
+        const body = document.body;
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+        
+        if (body.classList.contains('dark-theme')) {
+            // Переключаем на светлую тему
+            body.classList.remove('dark-theme');
+            themeToggleBtn.innerHTML = '🌙';
+            localStorage.setItem('theme', 'light');
+        } else {
+            // Переключаем на темную тему
+            body.classList.add('dark-theme');
+            themeToggleBtn.innerHTML = '☀️';
+            localStorage.setItem('theme', 'dark');
+        }
+    }
+
+    loadTheme() {
+        const savedTheme = localStorage.getItem('theme');
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+        
+        if (savedTheme === 'dark') {
+            document.body.classList.add('dark-theme');
+            if (themeToggleBtn) {
+                themeToggleBtn.innerHTML = '☀️';
+            }
+        } else {
+            document.body.classList.remove('dark-theme');
+            if (themeToggleBtn) {
+                themeToggleBtn.innerHTML = '🌙';
+            }
+        }
     }
 }
 
