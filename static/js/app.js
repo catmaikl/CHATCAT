@@ -216,7 +216,11 @@ class TelegramMessenger {
     }
 
     initializeSocket() {
-        this.socket = io();
+        // Подключаемся с поддержкой cookies/сессии и надёжными транспортами
+        this.socket = io({
+            withCredentials: true,
+            transports: ['websocket', 'polling'],
+        });
         
         this.socket.on('connect', () => {
             this.isConnected = true;
@@ -380,6 +384,10 @@ class TelegramMessenger {
         div.className = `message ${message.sender_id === this.currentUser.id ? 'sent' : 'received'}`;
         
         const time = this.formatTime(new Date(message.created_at));
+        
+        // Присваиваем data-атрибуты для последующих действий (контекстное меню, реакции)
+        div.dataset.messageId = message.id;
+        div.dataset.senderId = message.sender_id;
         
         div.innerHTML = `
             <div class="message-bubble">
@@ -565,25 +573,46 @@ class TelegramMessenger {
 
     async startChatWithContact(contactId) {
         try {
-            const response = await fetch('/api/chats/create', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    contact_id: contactId
-                })
-            });
+            // Сначала проверяем, есть ли уже чат с этим контактом
+            const existingChat = this.chats.find(chat => 
+                !chat.is_group && chat.members && chat.members.some(member => member.id === contactId)
+            );
             
-            const data = await response.json();
-            
-            if (data.status === 'success') {
+            if (existingChat) {
                 this.hideModals();
-                await this.loadChats();
-                this.selectChat(data.chat_id);
+                this.selectChat(existingChat.id);
+                return;
+            }
+            
+            // Если чата нет, создаем новый через добавление контакта
+            const contact = this.contacts.find(c => c.id === contactId);
+            if (contact) {
+                // Используем существующий метод добавления контакта, который создает чат
+                const response = await fetch('/api/contacts/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: contact.username
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    this.hideModals();
+                    await this.loadChats();
+                    if (data.chat_id) {
+                        this.selectChat(data.chat_id);
+                    }
+                } else {
+                    alert('Ошибка создания чата: ' + data.message);
+                }
             }
         } catch (error) {
             console.error('Failed to create chat:', error);
+            alert('Ошибка создания чата');
         }
     }
 

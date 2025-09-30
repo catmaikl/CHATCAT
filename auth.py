@@ -1,5 +1,5 @@
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from flask import flash, redirect, url_for, request
+from flask import flash, redirect, url_for, request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User
 from datetime import datetime
@@ -12,7 +12,10 @@ def load_user(user_id):
 
 @login_manager.unauthorized_handler
 def unauthorized():
-    return redirect(url_for('login'))
+    # Возвращаем JSON для API-запросов и редирект для страниц
+    if request.path.startswith('/api/'):
+        return jsonify({'status': 'error', 'message': 'Требуется аутентификация'}), 401
+    return redirect(url_for('index'))
 
 def register_user(username, email, password, first_name, last_name=None, phone=None):
     """Регистрация нового пользователя"""

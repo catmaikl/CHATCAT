@@ -32,18 +32,21 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# Настройка CORS с ограниченными источниками
+"""Настройка CORS с поддержкой credentials.
+Разрешаем локальную разработку и прод-домен, можно расширять через переменную окружения ALLOWED_ORIGINS (через запятую)."""
 allowed_origins = [
-    "https://chat-for-cats.onrender.com",
-    "http://localhost:5000",
-    "http://127.0.0.1:5000"
+    origin.strip() for origin in os.environ.get(
+        'ALLOWED_ORIGINS',
+        'https://chat-for-cats.onrender.com,http://localhost:5000,http://127.0.0.1:5000,http://localhost:10000,http://127.0.0.1:10000'
+    ).split(',') if origin.strip()
 ]
 
-CORS(app, resources={
+CORS(app, supports_credentials=True, resources={
     r"/*": {
         "origins": allowed_origins,
-        "methods": ["GET", "POST", "PUT", "DELETE"],
-        "allow_headers": ["Content-Type", "Authorization"]
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "expose_headers": ["Content-Type"],
     }
 })
 
@@ -70,11 +73,14 @@ except Exception as e:
     limiter = DummyLimiter()
 
 # Настройка SocketIO с ограниченными источниками
-socketio = SocketIO(app, 
-                   cors_allowed_origins=allowed_origins,
-                   async_mode='eventlet',
-                   logger=False,
-                   engineio_logger=False)
+socketio = SocketIO(
+    app,
+    cors_allowed_origins=allowed_origins,
+    async_mode='eventlet',
+    logger=False,
+    engineio_logger=False,
+    cookie=True
+)
 
 # Создание папок
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -734,7 +740,7 @@ def delete_message(message_id):
     try:
         message = Message.query.get_or_404(message_id)
         
-        # ��роверяем права на удаление
+        # Проверяем права на удаление
         if message.sender_id != current_user.id:
             # Проверяем, является ли пользователь админом чата
             membership = ChatMember.query.filter_by(
@@ -1000,7 +1006,7 @@ def create_group_chat():
         
         # Добавляем участников
         for member_id in member_ids:
-            if member_id != current_user.id:  # Не добавляем создателя д��ажды
+            if member_id != current_user.id:  # Не добавляем создателя дважды
                 member = ChatMember(
                     chat_id=chat.id,
                     user_id=member_id,
@@ -1062,7 +1068,7 @@ def mark_notification_read(notification_id):
         notification.is_read = True
         db.session.commit()
         
-        return jsonify({'status': 'success', 'message': 'Уведомле��ие отмечено как прочитанное'})
+        return jsonify({'status': 'success', 'message': 'Уведомление отмечено как прочитанное'})
         
     except Exception as e:
         logger.error(f"Mark notification read error: {str(e)}")

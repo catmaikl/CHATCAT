@@ -413,25 +413,60 @@ class ChatFeatures {
     }
 
     async uploadFile(file) {
+        // Проверяем размер файла (максимум 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            alert('Файл слишком большой. Максимальный размер: 10MB');
+            return;
+        }
+        
+        // Проверяем тип файла
+        const allowedTypes = [
+            'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+            'application/pdf', 'text/plain',
+            'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'audio/mpeg', 'audio/wav', 'audio/ogg',
+            'video/mp4', 'video/webm', 'video/ogg'
+        ];
+        
+        if (!allowedTypes.includes(file.type)) {
+            alert('Неподдерживаемый тип файла');
+            return;
+        }
+        
         const formData = new FormData();
         formData.append('file', file);
+        
+        // Показываем индикатор загрузки
+        this.showUploadProgress();
         
         try {
             const response = await fetch('/api/upload', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                credentials: 'include'
             });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             
             const data = await response.json();
             
             if (data.status === 'success') {
                 this.sendFileMessage(data);
+                this.showToast('Файл успешно загружен');
             } else {
                 alert('Ошибка загрузки файла: ' + data.message);
             }
         } catch (error) {
             console.error('File upload error:', error);
-            alert('Ошибка загрузки файла');
+            if (error.message.includes('404')) {
+                alert('Функция загрузки файлов временно недоступна');
+            } else {
+                alert('Ошибка загрузки файла: ' + error.message);
+            }
+        } finally {
+            this.hideUploadProgress();
         }
     }
 
@@ -774,6 +809,27 @@ class ChatFeatures {
                 document.body.removeChild(toast);
             }, 300);
         }, duration);
+    }
+
+    showUploadProgress() {
+        const progress = document.createElement('div');
+        progress.className = 'upload-progress';
+        progress.id = 'uploadProgress';
+        progress.innerHTML = `
+            <div class="upload-progress-content">
+                <div class="upload-spinner"></div>
+                <div class="upload-text">Загрузка файла...</div>
+            </div>
+        `;
+        
+        document.body.appendChild(progress);
+    }
+
+    hideUploadProgress() {
+        const progress = document.getElementById('uploadProgress');
+        if (progress) {
+            document.body.removeChild(progress);
+        }
     }
 }
 
