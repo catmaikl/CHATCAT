@@ -82,6 +82,9 @@ socketio = SocketIO(
     cookie=True
 )
 
+# In-memory map for signaling: user_id -> sid (last connected)
+user_id_to_sid = {}
+
 # Создание папок
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'avatars'), exist_ok=True)
@@ -357,6 +360,24 @@ def get_chat_messages(chat_id):
             except Exception:
                 decrypted_content = '[Ошибка расшифровки]'
             
+            # Формируем данные для ответа (reply_to), если есть
+            reply_data = None
+            if message.reply_to_id:
+                try:
+                    original = Message.query.get(message.reply_to_id)
+                    if original and original.chat_id == chat_id:
+                        try:
+                            original_content = encryption_manager.decrypt_message(original.content) if original.is_encrypted else original.content
+                        except Exception:
+                            original_content = '[Ошибка расшифровки]'
+                        reply_data = {
+                            'id': original.id,
+                            'sender_id': original.sender_id,
+                            'content': original_content[:120]
+                        }
+                except Exception:
+                    reply_data = None
+
             messages_data.append({
                 'id': message.id,
                 'content': decrypted_content,
@@ -365,7 +386,8 @@ def get_chat_messages(chat_id):
                 'is_encrypted': message.is_encrypted,
                 'is_read': message.is_read,
                 'created_at': message.created_at.isoformat(),
-                'file_path': message.file_path
+                'file_path': message.file_path,
+                'reply_to': reply_data
             })
         
         # Помечаем сообщения как прочитанные
@@ -400,6 +422,7 @@ def send_message(chat_id):
         
         content = data.get('content').strip()
         content_type = data.get('content_type', 'text')
+        reply_to_id = data.get('reply_to_id')
         
         if len(content) > 4000:
             return jsonify({'status': 'error', 'message': 'Сообщение слишком длинное'}), 400
@@ -423,11 +446,36 @@ def send_message(chat_id):
             content_type=content_type,
             is_encrypted=True
         )
+
+        # Если есть ответ на сообщение, валидируем принадлежность к чату
+        if reply_to_id:
+            original = Message.query.get(reply_to_id)
+            if not original or original.chat_id != chat_id:
+                return jsonify({'status': 'error', 'message': 'Неверный идентификатор сообщения для ответа'}), 400
+            message.reply_to_id = reply_to_id
         
         db.session.add(message)
         db.session.commit()
         
         # Отправляем через WebSocket
+        # Данные для reply_to в событии
+        reply_payload = None
+        if message.reply_to_id:
+            try:
+                original = Message.query.get(message.reply_to_id)
+                if original:
+                    try:
+                        original_content = encryption_manager.decrypt_message(original.content) if original.is_encrypted else original.content
+                    except Exception:
+                        original_content = '[Ошибка расшифровки]'
+                    reply_payload = {
+                        'id': original.id,
+                        'sender_id': original.sender_id,
+                        'content': original_content[:120]
+                    }
+            except Exception:
+                reply_payload = None
+
         socketio.emit('new_message', {
             'id': message.id,
             'content': content,
@@ -435,7 +483,8 @@ def send_message(chat_id):
             'sender_id': current_user.id,
             'sender_name': current_user.first_name,
             'chat_id': chat_id,
-            'created_at': message.created_at.isoformat()
+            'created_at': message.created_at.isoformat(),
+            'reply_to': reply_payload
         }, room=f'chat_{chat_id}')
         
         logger.info(f"Message sent by {current_user.username} to chat {chat_id}")
@@ -598,6 +647,8 @@ def handle_connect(auth):
     
     try:
         update_user_online_status(current_user.id, True)
+        # Remember socket id
+        user_id_to_sid[current_user.id] = request.sid
         emit('user_online', {'user_id': current_user.id}, broadcast=True)
         logger.info(f"WebSocket connected: {current_user.username}")
     except Exception as e:
@@ -609,6 +660,12 @@ def handle_disconnect():
     if current_user.is_authenticated:
         try:
             update_user_online_status(current_user.id, False)
+            # Cleanup mapping
+            try:
+                if user_id_to_sid.get(current_user.id) == request.sid:
+                    user_id_to_sid.pop(current_user.id, None)
+            except Exception:
+                pass
             emit('user_offline', {'user_id': current_user.id}, broadcast=True)
             logger.info(f"WebSocket disconnected: {current_user.username}")
         except Exception as e:
@@ -644,6 +701,70 @@ def handle_join_chat(data):
         
     except Exception as e:
         logger.error(f"Join chat error: {str(e)}")
+
+
+# ========== WebRTC signaling (1:1 calls) ==========
+@socketio.on('rtc_call_user')
+def rtc_call_user(data):
+    """Initiate a call to another user by user_id. data: { to_user_id, chat_id, type: 'audio'|'video' }"""
+    if not current_user.is_authenticated:
+        return
+    try:
+        to_user_id = int(data.get('to_user_id'))
+        chat_id = data.get('chat_id')
+        call_type = data.get('type', 'audio')
+
+        # Ensure both participants are members of the chat (security)
+        if chat_id:
+            membership_caller = ChatMember.query.filter_by(chat_id=chat_id, user_id=current_user.id).first()
+            membership_callee = ChatMember.query.filter_by(chat_id=chat_id, user_id=to_user_id).first()
+            if not membership_caller or not membership_callee:
+                return
+
+        sid = user_id_to_sid.get(to_user_id)
+        if sid:
+            emit('rtc_incoming_call', {
+                'from_user_id': current_user.id,
+                'from_username': current_user.first_name or current_user.username,
+                'chat_id': chat_id,
+                'type': call_type
+            }, to=sid)
+    except Exception as e:
+        logger.error(f"rtc_call_user error: {str(e)}")
+
+
+@socketio.on('rtc_signal')
+def rtc_signal(data):
+    """Relay SDP/ICE between peers. data: { to_user_id, signal }"""
+    if not current_user.is_authenticated:
+        return
+    try:
+        to_user_id = int(data.get('to_user_id'))
+        signal = data.get('signal')
+        sid = user_id_to_sid.get(to_user_id)
+        if sid:
+            emit('rtc_signal', {
+                'from_user_id': current_user.id,
+                'signal': signal
+            }, to=sid)
+    except Exception as e:
+        logger.error(f"rtc_signal error: {str(e)}")
+
+
+@socketio.on('rtc_end_call')
+def rtc_end_call(data):
+    """Notify peer to end call. data: { to_user_id }"""
+    if not current_user.is_authenticated:
+        return
+    try:
+        to_user_id = int(data.get('to_user_id'))
+        sid = user_id_to_sid.get(to_user_id)
+        if sid:
+            emit('rtc_end_call', {
+                'from_user_id': current_user.id
+            }, to=sid)
+    except Exception as e:
+        logger.error(f"rtc_end_call error: {str(e)}")
 
 @socketio.on('leave_chat')
 def handle_leave_chat(data):

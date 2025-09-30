@@ -83,6 +83,12 @@ class TelegramMessenger {
             }
         });
 
+        // Кнопки звонков
+        const voiceCallBtn = document.getElementById('voiceCallBtn');
+        const videoCallBtn = document.getElementById('videoCallBtn');
+        if (voiceCallBtn) voiceCallBtn.addEventListener('click', () => this.startCall('audio'));
+        if (videoCallBtn) videoCallBtn.addEventListener('click', () => this.startCall('video'));
+
         // Модальные окна
         document.querySelectorAll('.close-modal').forEach(btn => {
             btn.addEventListener('click', () => this.hideModals());
@@ -251,6 +257,23 @@ class TelegramMessenger {
         this.socket.on('user_offline', (data) => {
             this.updateUserOnlineStatus(data.user_id, false);
         });
+
+        // WebRTC signaling events
+        this.socket.on('rtc_incoming_call', (data) => {
+            if (window.callManager) {
+                window.callManager.onIncomingCall(data);
+            }
+        });
+        this.socket.on('rtc_signal', (data) => {
+            if (window.callManager) {
+                window.callManager.onSignal(data);
+            }
+        });
+        this.socket.on('rtc_end_call', (data) => {
+            if (window.callManager) {
+                window.callManager.onRemoteEndCall(data);
+            }
+        });
     }
 
     async loadInitialData() {
@@ -354,6 +377,16 @@ class TelegramMessenger {
         }
     }
 
+    startCall(type) {
+        if (!this.currentChat || !this.currentUser) return;
+        if (window.callManager) {
+            window.callManager.initiateCall({
+                chatId: this.currentChat.id,
+                type: type
+            });
+        }
+    }
+
     async loadChatMessages(chatId) {
         try {
             const response = await fetch(`/api/chats/${chatId}/messages`);
@@ -389,8 +422,21 @@ class TelegramMessenger {
         div.dataset.messageId = message.id;
         div.dataset.senderId = message.sender_id;
         
+        // Блок ответа, если есть
+        let replyBlock = '';
+        if (message.reply_to) {
+            const replyText = this.escapeHtml(message.reply_to.content || '');
+            replyBlock = `
+                <div class="message-reply">
+                    <div class="reply-author">${message.reply_to.sender_id === this.currentUser.id ? 'Вы' : ''}</div>
+                    <div class="reply-preview">${replyText}</div>
+                </div>
+            `;
+        }
+
         div.innerHTML = `
             <div class="message-bubble">
+                ${replyBlock}
                 <div class="message-content">${this.escapeHtml(message.content)}</div>
                 <div class="message-time">${time}</div>
                 ${message.sender_id === this.currentUser.id ? 
@@ -408,15 +454,21 @@ class TelegramMessenger {
         if (!content || !this.currentChat) return;
         
         try {
+            const payload = {
+                content: content,
+                content_type: 'text'
+            };
+            // Если выбран ответ, добавляем reply_to_id
+            if (window.chatFeatures && window.chatFeatures.replyToId) {
+                payload.reply_to_id = window.chatFeatures.replyToId;
+            }
+
             const response = await fetch(`/api/chats/${this.currentChat.id}/send`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    content: content,
-                    content_type: 'text'
-                })
+                body: JSON.stringify(payload)
             });
             
             const data = await response.json();
@@ -424,6 +476,10 @@ class TelegramMessenger {
             if (data.status === 'success') {
                 input.value = '';
                 this.adjustTextareaHeight(input);
+                // Если был ответ, очищаем панель ответа
+                if (window.chatFeatures) {
+                    window.chatFeatures.clearReply();
+                }
                 
                 // Сообщение будет добавлено через WebSocket
             }

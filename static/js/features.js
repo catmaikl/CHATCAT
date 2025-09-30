@@ -258,8 +258,22 @@ class ChatFeatures {
     }
 
     highlightSearchTerm(text) {
-        // Простое выделение поискового термина
-        return text; // TODO: Implement highlighting
+        // Подсветка поискового термина из текущего поля поиска
+        const searchInput = document.getElementById('searchInput');
+        const query = searchInput ? searchInput.value.trim() : '';
+        if (!query) return this.escapeHtml(text);
+
+        const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(${safeQuery})`, 'gi');
+        const escaped = this.escapeHtml(text);
+        return escaped.replace(regex, '<mark>$1</mark>');
+    }
+
+    // Вспомогательное экранирование
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     clearSearchResults() {
@@ -662,8 +676,44 @@ class ChatFeatures {
     }
 
     replyToMessage(messageId) {
-        // TODO: Implement reply functionality
-        console.log('Reply to message:', messageId);
+        const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+        if (!messageElement) return;
+
+        const content = messageElement.querySelector('.message-content')?.textContent || '';
+        const preview = content.length > 120 ? content.slice(0, 120) + '…' : content;
+
+        // Рендерим панель ответа над инпутом
+        let replyBar = document.getElementById('replyBar');
+        if (!replyBar) {
+            replyBar = document.createElement('div');
+            replyBar.id = 'replyBar';
+            replyBar.className = 'reply-bar';
+            const inputContainer = document.querySelector('.message-input-container');
+            if (inputContainer) {
+                inputContainer.parentNode.insertBefore(replyBar, inputContainer);
+            } else {
+                document.body.appendChild(replyBar);
+            }
+        }
+
+        replyBar.innerHTML = `
+            <div class="reply-bar-content">
+                <div class="reply-bar-text">Ответ на: ${this.escapeHtml(preview)}</div>
+                <button class="icon-btn reply-bar-close" title="Отменить">✖</button>
+            </div>
+        `;
+
+        // Обработчик отмены
+        replyBar.querySelector('.reply-bar-close').addEventListener('click', () => this.clearReply());
+
+        // Сохраняем выбранное сообщение для ответа
+        this.replyToId = messageId;
+    }
+
+    clearReply() {
+        const replyBar = document.getElementById('replyBar');
+        if (replyBar && replyBar.parentNode) replyBar.parentNode.removeChild(replyBar);
+        this.replyToId = null;
     }
 
     showReactionPicker(messageId) {
@@ -840,6 +890,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.messenger) {
             console.log('Initializing chat features...');
             window.chatFeatures = new ChatFeatures(window.messenger);
+            // Инициализация модуля звонков, когда есть сокет и пользователь
+            const tryInitCalls = () => {
+                if (window.messenger.socket && window.messenger.currentUser) {
+                    if (window.callManager && window.callManager.initialized) return;
+                    const script = document.createElement('script');
+                    script.src = '/static/js/calls.js';
+                    document.body.appendChild(script);
+                } else {
+                    setTimeout(tryInitCalls, 300);
+                }
+            };
+            tryInitCalls();
         } else {
             console.log('Messenger not ready, retrying in 500ms...');
             setTimeout(initFeatures, 500);

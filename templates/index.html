@@ -159,6 +159,22 @@
                         </button>
                     </div>
                 </div>
+                
+                <!-- Оверлей звонка -->
+                <div id="callOverlay" class="call-overlay" style="display: none;">
+                    <div class="call-modal">
+                        <div class="call-video-container">
+                            <video id="remoteVideo" autoplay playsinline></video>
+                            <video id="localVideo" autoplay muted playsinline></video>
+                        </div>
+                        <div class="call-controls">
+                            <button class="icon-btn" id="toggleMicBtn" title="Микрофон">🎤</button>
+                            <button class="icon-btn" id="toggleCamBtn" title="Камера">🎥</button>
+                            <button class="icon-btn end-call" id="endCallBtn" title="Завершить">🛑</button>
+                        </div>
+                        <div class="call-status" id="callStatus">Соединение…</div>
+                    </div>
+                </div>
             </div>
 
                     </div>
