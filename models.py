@@ -60,12 +60,22 @@ class Message(db.Model):
     sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     receiver_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     content = db.Column(db.Text, nullable=False)
-    content_type = db.Column(db.String(20), default='text')
+    content_type = db.Column(db.String(20), default='text')  # text, image, file, audio, video, voice
     file_path = db.Column(db.String(200))
+    file_name = db.Column(db.String(200))
+    file_size = db.Column(db.Integer)
+    mime_type = db.Column(db.String(100))
     is_encrypted = db.Column(db.Boolean, default=True)
     is_read = db.Column(db.Boolean, default=False)
+    is_edited = db.Column(db.Boolean, default=False)
+    is_deleted = db.Column(db.Boolean, default=False)
+    is_pinned = db.Column(db.Boolean, default=False)
+    reply_to_id = db.Column(db.Integer, db.ForeignKey('message.id'))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Отношения
+    reply_to = db.relationship('Message', remote_side=[id], backref='replies')
 
 class File(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -75,3 +85,61 @@ class File(db.Model):
     mime_type = db.Column(db.String(100))
     uploaded_by = db.Column(db.Integer, db.ForeignKey('user.id'))
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class UserSettings(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+    theme = db.Column(db.String(20), default='light')  # light, dark, auto
+    notifications_enabled = db.Column(db.Boolean, default=True)
+    sound_enabled = db.Column(db.Boolean, default=True)
+    language = db.Column(db.String(10), default='ru')
+    font_size = db.Column(db.String(10), default='medium')  # small, medium, large
+    auto_download_media = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Отношения
+    user = db.relationship('User', backref=db.backref('settings', uselist=False))
+
+class MessageReaction(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    message_id = db.Column(db.Integer, db.ForeignKey('message.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    emoji = db.Column(db.String(10), nullable=False)  # Unicode emoji
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Отношения
+    message = db.relationship('Message', backref='reactions')
+    user = db.relationship('User', backref='message_reactions')
+    
+    # Уникальность: один пользователь - одна реакция на сообще��ие
+    __table_args__ = (db.UniqueConstraint('message_id', 'user_id', name='unique_user_message_reaction'),)
+
+class ChatSettings(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    chat_id = db.Column(db.Integer, db.ForeignKey('chat.id'), nullable=False, unique=True)
+    description = db.Column(db.Text)
+    invite_link = db.Column(db.String(100), unique=True)
+    max_members = db.Column(db.Integer, default=200)
+    is_public = db.Column(db.Boolean, default=False)
+    allow_media = db.Column(db.Boolean, default=True)
+    allow_links = db.Column(db.Boolean, default=True)
+    slow_mode = db.Column(db.Integer, default=0)  # seconds between messages
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Отношения
+    chat = db.relationship('Chat', backref=db.backref('chat_settings', uselist=False))
+
+class Notification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    type = db.Column(db.String(50), default='message')  # message, system, friend_request
+    is_read = db.Column(db.Boolean, default=False)
+    data = db.Column(db.Text)  # JSON data for additional info
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Отношения
+    user = db.relationship('User', backref='notifications')

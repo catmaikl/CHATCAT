@@ -16,7 +16,7 @@ load_dotenv()
 from flask import Flask, render_template, request, jsonify, session, send_from_directory
 from flask_socketio import SocketIO, emit, join_room, leave_room, disconnect
 from flask_login import LoginManager, login_required, current_user, login_user, logout_user
-from models import db, User, Chat, Message, Contact, ChatMember, File
+from models import db, User, Chat, Message, Contact, ChatMember, File, UserSettings, MessageReaction, ChatSettings, Notification
 from auth import login_manager, register_user, authenticate_user, update_user_online_status
 from encryption import encryption_manager
 from config import Config
@@ -681,6 +681,393 @@ def handle_typing_stop(data):
         
     except Exception as e:
         logger.error(f"Typing stop error: {str(e)}")
+
+# Новые API endpoints для расширенных функций
+
+@app.route('/api/messages/<int:message_id>/edit', methods=['PUT'])
+@login_required
+def edit_message(message_id):
+    """Редактирование сообщения"""
+    try:
+        data = request.get_json()
+        valid, error = validate_input(data, ['content'])
+        if not valid:
+            return jsonify({'status': 'error', 'message': error}), 400
+        
+        message = Message.query.get_or_404(message_id)
+        
+        # Проверяем, что пользователь является автором сообщения
+        if message.sender_id != current_user.id:
+            return jsonify({'status': 'error', 'message': 'Доступ запрещен'}), 403
+        
+        # Проверяем, что сообщение не старше 48 часов
+        if (datetime.utcnow() - message.created_at).total_seconds() > 48 * 3600:
+            return jsonify({'status': 'error', 'message': 'Сообщение слишком старое для редактирования'}), 400
+        
+        new_content = data.get('content').strip()
+        encrypted_content = encryption_manager.encrypt_message(new_content)
+        
+        message.content = encrypted_content
+        message.is_edited = True
+        message.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        # Уведомляем через WebSocket
+        socketio.emit('message_edited', {
+            'message_id': message.id,
+            'content': new_content,
+            'chat_id': message.chat_id
+        }, room=f'chat_{message.chat_id}')
+        
+        return jsonify({'status': 'success', 'message': 'Сообщение отредактировано'})
+        
+    except Exception as e:
+        logger.error(f"Edit message error: {str(e)}")
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': 'Ошибка редактирования сообщения'}), 500
+
+@app.route('/api/messages/<int:message_id>/delete', methods=['DELETE'])
+@login_required
+def delete_message(message_id):
+    """Удаление сообщения"""
+    try:
+        message = Message.query.get_or_404(message_id)
+        
+        # ��роверяем права на удаление
+        if message.sender_id != current_user.id:
+            # Проверяем, является ли пользователь админом чата
+            membership = ChatMember.query.filter_by(
+                chat_id=message.chat_id,
+                user_id=current_user.id
+            ).first()
+            
+            if not membership or membership.role not in ['admin', 'owner']:
+                return jsonify({'status': 'error', 'message': 'Доступ запрещен'}), 403
+        
+        message.is_deleted = True
+        message.content = encryption_manager.encrypt_message('[Сообщение удалено]')
+        message.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        # Уведомляем через WebSocket
+        socketio.emit('message_deleted', {
+            'message_id': message.id,
+            'chat_id': message.chat_id
+        }, room=f'chat_{message.chat_id}')
+        
+        return jsonify({'status': 'success', 'message': 'Сообщение удалено'})
+        
+    except Exception as e:
+        logger.error(f"Delete message error: {str(e)}")
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': 'Ошибка удаления сообщения'}), 500
+
+@app.route('/api/messages/<int:message_id>/pin', methods=['POST'])
+@login_required
+def pin_message(message_id):
+    """Закрепление сообщения"""
+    try:
+        message = Message.query.get_or_404(message_id)
+        
+        # Проверяем права на закрепление
+        membership = ChatMember.query.filter_by(
+            chat_id=message.chat_id,
+            user_id=current_user.id
+        ).first()
+        
+        if not membership or membership.role not in ['admin', 'owner']:
+            return jsonify({'status': 'error', 'message': 'Недостаточно прав'}), 403
+        
+        message.is_pinned = True
+        db.session.commit()
+        
+        # Уведомляем через WebSocket
+        socketio.emit('message_pinned', {
+            'message_id': message.id,
+            'chat_id': message.chat_id
+        }, room=f'chat_{message.chat_id}')
+        
+        return jsonify({'status': 'success', 'message': 'Сообщение закреплено'})
+        
+    except Exception as e:
+        logger.error(f"Pin message error: {str(e)}")
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': 'Ошибка закрепления сообщения'}), 500
+
+@app.route('/api/messages/<int:message_id>/react', methods=['POST'])
+@login_required
+def react_to_message(message_id):
+    """Добавление реакции на сообщение"""
+    try:
+        data = request.get_json()
+        valid, error = validate_input(data, ['emoji'])
+        if not valid:
+            return jsonify({'status': 'error', 'message': error}), 400
+        
+        emoji = data.get('emoji')
+        
+        # Проверяем существование сообщения
+        message = Message.query.get_or_404(message_id)
+        
+        # Проверяем, есть ли уже реакция от этого пользователя
+        existing_reaction = MessageReaction.query.filter_by(
+            message_id=message_id,
+            user_id=current_user.id
+        ).first()
+        
+        if existing_reaction:
+            if existing_reaction.emoji == emoji:
+                # Удаляем реакцию если та же самая
+                db.session.delete(existing_reaction)
+                action = 'removed'
+            else:
+                # Обновляем реакцию
+                existing_reaction.emoji = emoji
+                action = 'updated'
+        else:
+            # Добавляем новую реакцию
+            reaction = MessageReaction(
+                message_id=message_id,
+                user_id=current_user.id,
+                emoji=emoji
+            )
+            db.session.add(reaction)
+            action = 'added'
+        
+        db.session.commit()
+        
+        # Уведомляем через WebSocket
+        socketio.emit('message_reaction', {
+            'message_id': message_id,
+            'user_id': current_user.id,
+            'emoji': emoji,
+            'action': action,
+            'chat_id': message.chat_id
+        }, room=f'chat_{message.chat_id}')
+        
+        return jsonify({'status': 'success', 'action': action})
+        
+    except Exception as e:
+        logger.error(f"React to message error: {str(e)}")
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': 'Ошибка добавления реакции'}), 500
+
+@app.route('/api/chats/<int:chat_id>/search', methods=['GET'])
+@login_required
+def search_messages(chat_id):
+    """Поиск сообщений в чате"""
+    try:
+        query = request.args.get('q', '').strip()
+        if not query:
+            return jsonify({'status': 'error', 'message': 'Поисковый запрос не может быть пустым'}), 400
+        
+        # Проверяем доступ к чату
+        membership = ChatMember.query.filter_by(
+            chat_id=chat_id,
+            user_id=current_user.id
+        ).first()
+        
+        if not membership:
+            return jsonify({'status': 'error', 'message': 'Доступ запрещен'}), 403
+        
+        # Поиск сообщений (упрощенный поиск по содержимому)
+        messages = Message.query.filter(
+            Message.chat_id == chat_id,
+            Message.is_deleted == False
+        ).order_by(Message.created_at.desc()).limit(50).all()
+        
+        results = []
+        for message in messages:
+            try:
+                decrypted_content = encryption_manager.decrypt_message(message.content) if message.is_encrypted else message.content
+                if query.lower() in decrypted_content.lower():
+                    results.append({
+                        'id': message.id,
+                        'content': decrypted_content,
+                        'sender_id': message.sender_id,
+                        'created_at': message.created_at.isoformat()
+                    })
+            except Exception:
+                continue
+        
+        return jsonify({'status': 'success', 'results': results})
+        
+    except Exception as e:
+        logger.error(f"Search messages error: {str(e)}")
+        return jsonify({'status': 'error', 'message': 'Ошибка поиска'}), 500
+
+@app.route('/api/user/settings', methods=['GET'])
+@login_required
+def get_user_settings():
+    """Получение настроек пользователя"""
+    try:
+        settings = UserSettings.query.filter_by(user_id=current_user.id).first()
+        if not settings:
+            # Создаем настройки по умолчанию
+            settings = UserSettings(user_id=current_user.id)
+            db.session.add(settings)
+            db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'settings': {
+                'theme': settings.theme,
+                'notifications_enabled': settings.notifications_enabled,
+                'sound_enabled': settings.sound_enabled,
+                'language': settings.language,
+                'font_size': settings.font_size,
+                'auto_download_media': settings.auto_download_media
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Get user settings error: {str(e)}")
+        return jsonify({'status': 'error', 'message': 'Ошибка получения настроек'}), 500
+
+@app.route('/api/user/settings', methods=['PUT'])
+@login_required
+def update_user_settings():
+    """Обновление настроек пользователя"""
+    try:
+        data = request.get_json()
+        
+        settings = UserSettings.query.filter_by(user_id=current_user.id).first()
+        if not settings:
+            settings = UserSettings(user_id=current_user.id)
+            db.session.add(settings)
+        
+        # Обновляем настройки
+        if 'theme' in data:
+            settings.theme = data['theme']
+        if 'notifications_enabled' in data:
+            settings.notifications_enabled = data['notifications_enabled']
+        if 'sound_enabled' in data:
+            settings.sound_enabled = data['sound_enabled']
+        if 'language' in data:
+            settings.language = data['language']
+        if 'font_size' in data:
+            settings.font_size = data['font_size']
+        if 'auto_download_media' in data:
+            settings.auto_download_media = data['auto_download_media']
+        
+        settings.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({'status': 'success', 'message': 'Настройки обновлены'})
+        
+    except Exception as e:
+        logger.error(f"Update user settings error: {str(e)}")
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': 'Ошибка обновления настроек'}), 500
+
+@app.route('/api/chats/create-group', methods=['POST'])
+@login_required
+def create_group_chat():
+    """Создание группового чата"""
+    try:
+        data = request.get_json()
+        valid, error = validate_input(data, ['name', 'members'])
+        if not valid:
+            return jsonify({'status': 'error', 'message': error}), 400
+        
+        name = data.get('name').strip()
+        member_ids = data.get('members', [])
+        
+        if len(name) < 3:
+            return jsonify({'status': 'error', 'message': 'Название группы должно содержать минимум 3 символа'}), 400
+        
+        if len(member_ids) < 1:
+            return jsonify({'status': 'error', 'message': 'Выберите участников группы'}), 400
+        
+        # Создаем групповой чат
+        chat = Chat(
+            name=name,
+            is_group=True,
+            created_by=current_user.id
+        )
+        db.session.add(chat)
+        db.session.flush()
+        
+        # Добавляем создателя как владельца
+        owner_member = ChatMember(
+            chat_id=chat.id,
+            user_id=current_user.id,
+            role='owner'
+        )
+        db.session.add(owner_member)
+        
+        # Добавляем участников
+        for member_id in member_ids:
+            if member_id != current_user.id:  # Не добавляем создателя д��ажды
+                member = ChatMember(
+                    chat_id=chat.id,
+                    user_id=member_id,
+                    role='member'
+                )
+                db.session.add(member)
+        
+        db.session.commit()
+        
+        logger.info(f"Group chat created by {current_user.username}: {name}")
+        
+        return jsonify({
+            'status': 'success',
+            'chat_id': chat.id,
+            'message': 'Групповой чат создан'
+        })
+        
+    except Exception as e:
+        logger.error(f"Create group chat error: {str(e)}")
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': 'Ошибка создания группового чата'}), 500
+
+@app.route('/api/notifications', methods=['GET'])
+@login_required
+def get_notifications():
+    """Получение уведомлений пользователя"""
+    try:
+        notifications = Notification.query.filter_by(
+            user_id=current_user.id
+        ).order_by(Notification.created_at.desc()).limit(50).all()
+        
+        notifications_data = []
+        for notification in notifications:
+            notifications_data.append({
+                'id': notification.id,
+                'title': notification.title,
+                'message': notification.message,
+                'type': notification.type,
+                'is_read': notification.is_read,
+                'created_at': notification.created_at.isoformat()
+            })
+        
+        return jsonify({'status': 'success', 'notifications': notifications_data})
+        
+    except Exception as e:
+        logger.error(f"Get notifications error: {str(e)}")
+        return jsonify({'status': 'error', 'message': 'Ошибка получения уведомлений'}), 500
+
+@app.route('/api/notifications/<int:notification_id>/read', methods=['POST'])
+@login_required
+def mark_notification_read(notification_id):
+    """Отметка уведомления как прочитанного"""
+    try:
+        notification = Notification.query.filter_by(
+            id=notification_id,
+            user_id=current_user.id
+        ).first_or_404()
+        
+        notification.is_read = True
+        db.session.commit()
+        
+        return jsonify({'status': 'success', 'message': 'Уведомле��ие отмечено как прочитанное'})
+        
+    except Exception as e:
+        logger.error(f"Mark notification read error: {str(e)}")
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': 'Ошибка обновления уведомления'}), 500
 
 # Health check endpoint
 @app.route('/health')
