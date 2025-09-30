@@ -2,7 +2,10 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#667eea">
     <title>Little Kitten Chat - Вход</title>
     <style>
         * {
@@ -132,6 +135,108 @@
             border-radius: 5px;
             margin-bottom: 15px;
             display: none;
+        }
+
+        /* Мобильная адаптация */
+        @media (max-width: 768px) {
+            body {
+                padding: 20px;
+                align-items: flex-start;
+                padding-top: 10vh;
+            }
+
+            .auth-container {
+                padding: 30px 20px;
+                margin: 0;
+                border-radius: 10px;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            }
+
+            .logo h1 {
+                font-size: 24px;
+            }
+
+            .logo p {
+                font-size: 13px;
+            }
+
+            .tab {
+                padding: 15px 8px;
+                font-size: 15px;
+            }
+
+            .form-group {
+                margin-bottom: 18px;
+            }
+
+            .form-group input {
+                padding: 14px 15px;
+                font-size: 16px; /* Предотвращает зум на iOS */
+                border-radius: 10px;
+            }
+
+            .btn {
+                padding: 14px;
+                font-size: 16px;
+                border-radius: 10px;
+                margin-top: 10px;
+            }
+
+            .error-message,
+            .success-message {
+                padding: 12px;
+                font-size: 14px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 15px;
+                padding-top: 5vh;
+            }
+
+            .auth-container {
+                padding: 25px 15px;
+            }
+
+            .logo h1 {
+                font-size: 22px;
+            }
+
+            .tab {
+                padding: 12px 5px;
+                font-size: 14px;
+            }
+
+            .form-group input {
+                padding: 12px 15px;
+            }
+
+            .btn {
+                padding: 12px;
+            }
+        }
+
+        /* Поддержка touch устройств */
+        @media (hover: none) and (pointer: coarse) {
+            .tab:hover,
+            .btn:hover {
+                background-color: initial;
+            }
+
+            .tab:active {
+                background-color: #f0f0f0;
+            }
+
+            .btn:active {
+                transform: scale(0.98);
+                background: #5a6fd8;
+            }
+
+            .form-group input:focus {
+                border-color: #667eea;
+                box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            }
         }
     </style>
 </head>

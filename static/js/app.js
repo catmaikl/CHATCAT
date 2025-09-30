@@ -90,6 +90,122 @@ class TelegramMessenger {
         // Настройки
         document.getElementById('logoutBtn').addEventListener('click', () => this.logout());
         document.getElementById('saveSettingsBtn').addEventListener('click', () => this.saveSettings());
+
+        // Мобильная навигация
+        this.initializeMobileNavigation();
+        
+        // Обработка изменения размера окна
+        window.addEventListener('resize', () => this.handleResize());
+        
+        // Предотвращение зума на iOS при фокусе на input
+        this.preventIOSZoom();
+    }
+
+    initializeMobileNavigation() {
+        // Создаем оверлей для мобильной навигации
+        const overlay = document.createElement('div');
+        overlay.className = 'mobile-overlay';
+        overlay.id = 'mobileOverlay';
+        document.body.appendChild(overlay);
+
+        // Обработчик для кнопки меню в заголовке чата
+        document.addEventListener('click', (e) => {
+            const chatHeader = e.target.closest('.chat-header');
+            if (chatHeader && window.innerWidth <= 768) {
+                const rect = e.target.getBoundingClientRect();
+                if (rect.left <= 50) { // Клик в области кнопки меню
+                    this.toggleMobileSidebar();
+                }
+            }
+        });
+
+        // Обработчик для кнопки закрытия в боковой панели
+        document.addEventListener('click', (e) => {
+            const sidebarHeader = e.target.closest('.sidebar-header');
+            if (sidebarHeader && window.innerWidth <= 768) {
+                const rect = e.target.getBoundingClientRect();
+                const headerRect = sidebarHeader.getBoundingClientRect();
+                if (rect.right >= headerRect.right - 50) { // Клик в области кнопки закрытия
+                    this.closeMobileSidebar();
+                }
+            }
+        });
+
+        // За��рытие боковой панели при клике на оверлей
+        overlay.addEventListener('click', () => {
+            this.closeMobileSidebar();
+        });
+
+        // Закрытие боковой панели при выборе чата на мобильных
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 768 && e.target.closest('.chat-item')) {
+                setTimeout(() => this.closeMobileSidebar(), 300);
+            }
+        });
+    }
+
+    toggleMobileSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        const overlay = document.getElementById('mobileOverlay');
+        
+        if (sidebar.classList.contains('mobile-open')) {
+            this.closeMobileSidebar();
+        } else {
+            this.openMobileSidebar();
+        }
+    }
+
+    openMobileSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        const overlay = document.getElementById('mobileOverlay');
+        
+        sidebar.classList.add('mobile-open');
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    closeMobileSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        const overlay = document.getElementById('mobileOverlay');
+        
+        sidebar.classList.remove('mobile-open');
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    handleResize() {
+        // Закрываем мобильную боковую панель при изменении размера на десктоп
+        if (window.innerWidth > 768) {
+            this.closeMobileSidebar();
+        }
+    }
+
+    preventIOSZoom() {
+        // Предотвращаем зум на iOS при фокусе на input элементах
+        const inputs = document.querySelectorAll('input, textarea');
+        inputs.forEach(input => {
+            input.addEventListener('focus', () => {
+                if (this.isIOS()) {
+                    document.querySelector('meta[name=viewport]').setAttribute(
+                        'content', 
+                        'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no'
+                    );
+                }
+            });
+            
+            input.addEventListener('blur', () => {
+                if (this.isIOS()) {
+                    document.querySelector('meta[name=viewport]').setAttribute(
+                        'content', 
+                        'width=device-width, initial-scale=1'
+                    );
+                }
+            });
+        });
+    }
+
+    isIOS() {
+        return /iPad|iPhone|iPod/.test(navigator.userAgent);
     }
 
     initializeSocket() {
