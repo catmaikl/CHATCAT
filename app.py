@@ -127,25 +127,37 @@ def api_register():
     try:
         data = request.get_json()
         
-        # Валидация входных данных
-        valid, error = validate_input(data, ['username', 'email', 'password', 'first_name'])
+        # Базовая валидация обязательных полей (без first_name)
+        valid, error = validate_input(data, ['username', 'email', 'password'])
         if not valid:
             return jsonify({'status': 'error', 'message': error}), 400
+
+        # Нормализация и тримминг входных данных
+        username = (data.get('username') or '').strip()
+        email = (data.get('email') or '').strip()
+        password = (data.get('password') or '').strip()
+        first_name = (data.get('first_name') or '').strip()
+        last_name = (data.get('last_name') or '').strip() if data.get('last_name') is not None else None
+        phone = (data.get('phone') or '').strip() if data.get('phone') is not None else None
+
+        # Проверка после тримминга
+        if not username or not email or not password:
+            return jsonify({'status': 'error', 'message': 'Имя пользователя, email и пароль обязательны'}), 400
         
         # Дополнительная валидация
-        if len(data['username']) < 3:
+        if len(username) < 3:
             return jsonify({'status': 'error', 'message': 'Имя пользователя должно содержать минимум 3 символа'}), 400
         
-        if len(data['password']) < 6:
+        if len(password) < 6:
             return jsonify({'status': 'error', 'message': 'Пароль должен содержать минимум 6 символов'}), 400
         
         success, result = register_user(
-            username=data['username'],
-            email=data['email'],
-            password=data['password'],
-            first_name=data['first_name'],
-            last_name=data.get('last_name'),
-            phone=data.get('phone')
+            username=username,
+            email=email,
+            password=password,
+            first_name=first_name or None,
+            last_name=last_name,
+            phone=phone
         )
         
         if success:
@@ -174,7 +186,13 @@ def api_login():
         if not valid:
             return jsonify({'status': 'error', 'message': error}), 400
         
-        user = authenticate_user(data['username'], data['password'])
+        # Нормализация/тримминг для уменьшения ложных 401
+        username = (data.get('username') or '').strip()
+        password = (data.get('password') or '').strip()
+        if not username or not password:
+            return jsonify({'status': 'error', 'message': 'Имя пользователя и пароль обязательны'}), 400
+
+        user = authenticate_user(username, password)
         if user:
             login_user(user)
             logger.info(f"User logged in: {user.username}")
