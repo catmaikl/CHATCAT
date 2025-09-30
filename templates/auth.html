@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="theme-color" content="#667eea">
-    <title>Little Kitten Chat - Вход</title>
+    <meta name="theme-color" content="#ff3333">
+    <title>🔥 Fire Chat - Вход</title>
     <style>
         * {
             margin: 0;
@@ -16,62 +16,143 @@
         }
 
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1a0000 0%, #330000 50%, #660000 100%);
             height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Огненные частицы на фоне */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><radialGradient id="fire" cx="50%" cy="50%"><stop offset="0%" stop-color="%23ffaa00" stop-opacity="0.6"/><stop offset="50%" stop-color="%23ff6600" stop-opacity="0.3"/><stop offset="100%" stop-color="%23ff3333" stop-opacity="0.1"/></radialGradient></defs><circle cx="10" cy="90" r="8" fill="url(%23fire)"><animate attributeName="cy" values="90;10;90" dur="4s" repeatCount="indefinite"/></circle><circle cx="30" cy="95" r="6" fill="url(%23fire)"><animate attributeName="cy" values="95;15;95" dur="3.5s" repeatCount="indefinite"/></circle><circle cx="50" cy="85" r="10" fill="url(%23fire)"><animate attributeName="cy" values="85;5;85" dur="4.5s" repeatCount="indefinite"/></circle><circle cx="70" cy="92" r="7" fill="url(%23fire)"><animate attributeName="cy" values="92;12;92" dur="3.8s" repeatCount="indefinite"/></circle><circle cx="90" cy="88" r="9" fill="url(%23fire)"><animate attributeName="cy" values="88;8;88" dur="4.2s" repeatCount="indefinite"/></circle></svg>') center/cover;
+            opacity: 0.4;
+            animation: fireFlicker 3s ease-in-out infinite alternate;
+            pointer-events: none;
+        }
+
+        @keyframes fireFlicker {
+            0% { opacity: 0.3; }
+            100% { opacity: 0.5; }
         }
 
         .auth-container {
-            background: white;
-            padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            backdrop-filter: blur(20px);
+            border: 2px solid rgba(255, 51, 51, 0.3);
+            padding: 45px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(255, 51, 51, 0.3);
             width: 100%;
-            max-width: 400px;
+            max-width: 450px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .auth-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 170, 0, 0.1), transparent);
+            animation: shimmer 4s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            50% { left: 100%; }
+            100% { left: -100%; }
         }
 
         .logo {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 35px;
+            z-index: 1;
+            position: relative;
         }
 
         .logo h1 {
-            color: #333;
-            font-size: 28px;
-            margin-bottom: 5px;
+            background: linear-gradient(135deg, #ffaa00, #ff6600, #ff3333);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 32px;
+            margin-bottom: 8px;
+            font-weight: 800;
+            text-shadow: 0 0 30px rgba(255, 102, 0, 0.5);
+            animation: titleGlow 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes titleGlow {
+            0% { filter: drop-shadow(0 0 10px rgba(255, 170, 0, 0.5)); }
+            100% { filter: drop-shadow(0 0 20px rgba(255, 102, 0, 0.8)); }
         }
 
         .logo p {
-            color: #666;
-            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 16px;
+            font-weight: 500;
         }
 
         .tabs {
             display: flex;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #eee;
+            margin-bottom: 25px;
+            border-bottom: 2px solid rgba(255, 51, 51, 0.3);
+            z-index: 1;
+            position: relative;
         }
 
         .tab {
             flex: 1;
-            padding: 12px;
+            padding: 15px;
             background: none;
             border: none;
             cursor: pointer;
-            font-size: 16px;
-            color: #666;
-            transition: color 0.3s;
+            font-size: 17px;
+            color: rgba(255, 255, 255, 0.7);
+            transition: all 0.3s ease;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: relative;
         }
 
         .tab.active {
-            color: #667eea;
-            font-weight: 600;
+            color: #ff3333;
+            background: rgba(255, 51, 51, 0.1);
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(135deg, #ff3333, #ff6600, #ffaa00);
+            border-radius: 3px 3px 0 0;
+        }
+
+        .tab:hover:not(.active) {
+            color: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.05);
         }
 
         .form {
             display: none;
+            z-index: 1;
+            position: relative;
         }
 
         .form.active {
@@ -79,62 +160,106 @@
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 5px;
-            color: #333;
-            font-weight: 500;
+            margin-bottom: 8px;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 13px;
+            letter-spacing: 0.5px;
         }
 
         .form-group input {
             width: 100%;
-            padding: 12px 15px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
+            padding: 15px 20px;
+            border: 2px solid rgba(255, 51, 51, 0.3);
+            border-radius: 12px;
             font-size: 16px;
-            transition: border-color 0.3s;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            backdrop-filter: blur(10px);
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
         }
 
         .form-group input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #ff3333;
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 20px rgba(255, 51, 51, 0.4);
         }
 
         .btn {
             width: 100%;
-            padding: 12px;
-            background: #667eea;
+            padding: 16px;
+            background: linear-gradient(135deg, #ff3333, #ff6600, #ffaa00);
             color: white;
             border: none;
-            border-radius: 8px;
-            font-size: 16px;
+            border-radius: 12px;
+            font-size: 17px;
+            font-weight: 700;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 0 20px rgba(255, 51, 51, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
         }
 
         .btn:hover {
-            background: #5a6fd8;
+            transform: translateY(-2px);
+            box-shadow: 0 0 30px rgba(255, 102, 0, 0.6);
+        }
+
+        .btn:active {
+            transform: translateY(0);
         }
 
         .error-message {
-            background: #ffe6e6;
-            color: #d63031;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 15px;
+            background: linear-gradient(135deg, rgba(255, 68, 68, 0.2), rgba(204, 0, 0, 0.2));
+            border: 1px solid rgba(255, 68, 68, 0.5);
+            color: #ffcccc;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
             display: none;
+            backdrop-filter: blur(10px);
+            font-weight: 500;
         }
 
         .success-message {
-            background: #e6ffe6;
-            color: #00b894;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 15px;
+            background: linear-gradient(135deg, rgba(0, 184, 148, 0.2), rgba(0, 150, 120, 0.2));
+            border: 1px solid rgba(0, 184, 148, 0.5);
+            color: #ccffcc;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
             display: none;
+            backdrop-filter: blur(10px);
+            font-weight: 500;
         }
 
         /* Мобильная адаптация */
@@ -142,49 +267,49 @@
             body {
                 padding: 20px;
                 align-items: flex-start;
-                padding-top: 10vh;
+                padding-top: 8vh;
             }
 
             .auth-container {
-                padding: 30px 20px;
+                padding: 35px 25px;
                 margin: 0;
-                border-radius: 10px;
-                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+                border-radius: 15px;
+                max-width: 100%;
             }
 
             .logo h1 {
-                font-size: 24px;
+                font-size: 28px;
             }
 
             .logo p {
-                font-size: 13px;
+                font-size: 15px;
             }
 
             .tab {
-                padding: 15px 8px;
+                padding: 18px 10px;
                 font-size: 15px;
             }
 
             .form-group {
-                margin-bottom: 18px;
+                margin-bottom: 22px;
             }
 
             .form-group input {
-                padding: 14px 15px;
-                font-size: 16px; /* Предотвращает зум на iOS */
-                border-radius: 10px;
+                padding: 16px 18px;
+                font-size: 16px;
+                border-radius: 12px;
             }
 
             .btn {
-                padding: 14px;
+                padding: 16px;
                 font-size: 16px;
-                border-radius: 10px;
+                border-radius: 12px;
                 margin-top: 10px;
             }
 
             .error-message,
             .success-message {
-                padding: 12px;
+                padding: 14px;
                 font-size: 14px;
             }
         }
@@ -196,24 +321,24 @@
             }
 
             .auth-container {
-                padding: 25px 15px;
+                padding: 30px 20px;
             }
 
             .logo h1 {
-                font-size: 22px;
+                font-size: 26px;
             }
 
             .tab {
-                padding: 12px 5px;
+                padding: 15px 8px;
                 font-size: 14px;
             }
 
             .form-group input {
-                padding: 12px 15px;
+                padding: 14px 16px;
             }
 
             .btn {
-                padding: 12px;
+                padding: 14px;
             }
         }
 
@@ -222,29 +347,73 @@
             .tab:hover,
             .btn:hover {
                 background-color: initial;
+                transform: none;
             }
 
             .tab:active {
-                background-color: #f0f0f0;
+                background-color: rgba(255, 255, 255, 0.1);
             }
 
             .btn:active {
                 transform: scale(0.98);
-                background: #5a6fd8;
             }
 
             .form-group input:focus {
-                border-color: #667eea;
-                box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+                border-color: #ff3333;
+                box-shadow: 0 0 15px rgba(255, 51, 51, 0.3);
             }
         }
+
+        /* Дополнительные огненные эффекты */
+        .fire-particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: radial-gradient(circle, #ffaa00, #ff6600);
+            border-radius: 50%;
+            animation: floatUp 6s linear infinite;
+            opacity: 0;
+        }
+
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translateY(100vh) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-100px) scale(0.5);
+            }
+        }
+
+        /* Создаем несколько частиц */
+        .fire-particle:nth-child(1) { left: 10%; animation-delay: 0s; }
+        .fire-particle:nth-child(2) { left: 20%; animation-delay: 1s; }
+        .fire-particle:nth-child(3) { left: 30%; animation-delay: 2s; }
+        .fire-particle:nth-child(4) { left: 40%; animation-delay: 3s; }
+        .fire-particle:nth-child(5) { left: 50%; animation-delay: 4s; }
+        .fire-particle:nth-child(6) { left: 60%; animation-delay: 5s; }
+        .fire-particle:nth-child(7) { left: 70%; animation-delay: 1.5s; }
+        .fire-particle:nth-child(8) { left: 80%; animation-delay: 2.5s; }
+        .fire-particle:nth-child(9) { left: 90%; animation-delay: 3.5s; }
     </style>
 </head>
 <body>
+    <!-- Огненные частицы -->
+    <div class="fire-particle"></div>
+    <div class="fire-particle"></div>
+    <div class="fire-particle"></div>
+    <div class="fire-particle"></div>
+    <div class="fire-particle"></div>
+    <div class="fire-particle"></div>
+    <div class="fire-particle"></div>
+    <div class="fire-particle"></div>
+    <div class="fire-particle"></div>
+
     <div class="auth-container">
         <div class="logo">
-            <h1>🐱 Little Kitten Chat</h1>
-            <p>Безопасный мессенджер для общения</p>
+            <h1>🔥 Fire Chat</h1>
+            <p>Огненны�� мессенджер для безопасного общения</p>
         </div>
 
         <div class="tabs">
@@ -262,7 +431,7 @@
                 <label for="loginPassword">Пароль</label>
                 <input type="password" id="loginPassword" placeholder="Введите пароль">
             </div>
-            <button class="btn" onclick="login()">Войти</button>
+            <button class="btn" onclick="login()">Войти в Fire Chat</button>
         </div>
 
         <div id="registerForm" class="form">
@@ -292,7 +461,7 @@
                 <label for="regConfirmPassword">Подтвердите пароль</label>
                 <input type="password" id="regConfirmPassword" placeholder="Повторите пароль">
             </div>
-            <button class="btn" onclick="register()">Зарегистрироваться</button>
+            <button class="btn" onclick="register()">Присоединиться к Fire Chat</button>
         </div>
     </div>
 
@@ -321,7 +490,7 @@
             const errorDiv = document.getElementById('loginError');
 
             if (!username || !password) {
-                showError(errorDiv, 'Заполните все поля');
+                showError(errorDiv, '🔥 Заполните все поля для входа в Fire Chat');
                 return;
             }
 
@@ -342,10 +511,10 @@
                 if (data.status === 'success') {
                     window.location.href = '/';
                 } else {
-                    showError(errorDiv, data.message || 'Ошибка входа');
+                    showError(errorDiv, '🔥 ' + (data.message || 'Ошибка входа в Fire Chat'));
                 }
             } catch (error) {
-                showError(errorDiv, 'Ошибка соединения');
+                showError(errorDiv, '🔥 Ошибка соединения с Fire Chat');
             }
         }
 
@@ -359,12 +528,12 @@
             const successDiv = document.getElementById('registerSuccess');
 
             if (!username || !email || !firstName || !password) {
-                showError(errorDiv, 'Заполните обязательные поля');
+                showError(errorDiv, '🔥 Заполните обязательные поля');
                 return;
             }
 
             if (password !== confirmPassword) {
-                showError(errorDiv, 'Пароли не совпадают');
+                showError(errorDiv, '🔥 Пароли не совпадают');
                 return;
             }
 
@@ -386,15 +555,15 @@
                 const data = await response.json();
 
                 if (data.status === 'success') {
-                    showSuccess(successDiv, 'Регистрация успешна! Выполняется вход...');
+                    showSuccess(successDiv, '🔥 Добро пожаловать в Fire Chat! Выполняется вход...');
                     setTimeout(() => {
                         window.location.href = '/';
                     }, 1000);
                 } else {
-                    showError(errorDiv, data.message || 'Ошибка регистрации');
+                    showError(errorDiv, '🔥 ' + (data.message || 'Ошибка регистрации'));
                 }
             } catch (error) {
-                showError(errorDiv, 'Ошибка соединения');
+                showError(errorDiv, '🔥 Ошибка соединения с Fire Chat');
             }
         }
 
@@ -421,6 +590,22 @@
                     register();
                 }
             }
+        });
+
+        // Добавляем дополнительные огненные эффекты при загрузке
+        document.addEventListener('DOMContentLoaded', function() {
+            // Создаем дополнительные огненные частицы
+            setInterval(() => {
+                const particle = document.createElement('div');
+                particle.className = 'fire-particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDuration = (Math.random() * 3 + 4) + 's';
+                document.body.appendChild(particle);
+                
+                setTimeout(() => {
+                    particle.remove();
+                }, 7000);
+            }, 2000);
         });
     </script>
 </body>

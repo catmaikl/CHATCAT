@@ -1,0 +1,28 @@
+<svg width="50" height="50" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="chatFireGradient" cx="50%" cy="30%">
+      <stop offset="0%" stop-color="#ffaa00"/>
+      <stop offset="50%" stop-color="#ff6600"/>
+      <stop offset="100%" stop-color="#ff3333"/>
+    </radialGradient>
+    <filter id="chatGlow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <circle cx="25" cy="25" r="25" fill="url(#chatFireGradient)" filter="url(#chatGlow)"/>
+  <path d="M15 20 Q15 15 20 15 L30 15 Q35 15 35 20 L35 30 Q35 35 30 35 L25 35 L20 40 L20 35 Q15 35 15 30 Z" fill="white" opacity="0.9"/>
+  <!-- Огненные языки пламени -->
+  <path d="M12 8 Q10 12 12 16 Q14 12 12 8" fill="#ffaa00" opacity="0.7">
+    <animateTransform attributeName="transform" type="rotate" values="0 12 12;10 12 12;0 12 12" dur="2s" repeatCount="indefinite"/>
+  </path>
+  <path d="M25 5 Q23 10 25 15 Q27 10 25 5" fill="#ff6600" opacity="0.8">
+    <animateTransform attributeName="transform" type="rotate" values="0 25 10;-5 25 10;0 25 10" dur="1.8s" repeatCount="indefinite"/>
+  </path>
+  <path d="M38 10 Q36 14 38 18 Q40 14 38 10" fill="#ff3333" opacity="0.6">
+    <animateTransform attributeName="transform" type="rotate" values="0 38 14;8 38 14;0 38 14" dur="2.2s" repeatCount="indefinite"/>
+  </path>
+</svg>

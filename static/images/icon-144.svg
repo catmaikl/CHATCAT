@@ -1,0 +1,45 @@
+<svg width="144" height="144" viewBox="0 0 144 144" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="iconFire144" cx="50%" cy="30%">
+      <stop offset="0%" stop-color="#ffaa00"/>
+      <stop offset="40%" stop-color="#ff6600"/>
+      <stop offset="80%" stop-color="#ff3333"/>
+      <stop offset="100%" stop-color="#cc0000"/>
+    </radialGradient>
+    <filter id="iconGlow144">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="144" height="144" rx="24" fill="url(#iconFire144)" filter="url(#iconGlow144)"/>
+  <path d="M36 54 Q36 36 54 36 L90 36 Q108 36 108 54 L108 90 Q108 108 90 108 L72 108 L54 126 L54 108 Q36 108 36 90 Z" fill="white" opacity="0.95"/>
+  
+  <!-- Огненные языки пламени -->
+  <path d="M20 20 Q15 30 20 40 Q25 30 20 20" fill="#ffaa00" opacity="0.7">
+    <animateTransform attributeName="transform" type="rotate" values="0 20 30;15 20 30;0 20 30" dur="3s" repeatCount="indefinite"/>
+  </path>
+  <path d="M72 15 Q67 25 72 35 Q77 25 72 15" fill="#ff6600" opacity="0.8">
+    <animateTransform attributeName="transform" type="rotate" values="0 72 25;-10 72 25;0 72 25" dur="2.5s" repeatCount="indefinite"/>
+  </path>
+  <path d="M124 25 Q119 35 124 45 Q129 35 124 25" fill="#ff3333" opacity="0.6">
+    <animateTransform attributeName="transform" type="rotate" values="0 124 35;12 124 35;0 124 35" dur="3.2s" repeatCount="indefinite"/>
+  </path>
+  
+  <!-- Дополнительные огненные эффекты -->
+  <circle cx="25" cy="120" r="3" fill="#ffaa00" opacity="0.6">
+    <animate attributeName="cy" values="120;100;120" dur="4s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.6;0.2;0.6" dur="4s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="120" cy="115" r="2.5" fill="#ff6600" opacity="0.7">
+    <animate attributeName="cy" values="115;95;115" dur="3.5s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.7;0.3;0.7" dur="3.5s" repeatCount="indefinite"/>
+  </circle>
+  
+  <!-- Точки в сообщении -->
+  <circle cx="60" cy="66" r="4" fill="#ff3333" opacity="0.8"/>
+  <circle cx="72" cy="66" r="4" fill="#ff6600" opacity="0.8"/>
+  <circle cx="84" cy="66" r="4" fill="#ffaa00" opacity="0.8"/>
+</svg>

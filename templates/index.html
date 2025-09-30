@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Little Kitten Chat">
+    <meta name="apple-mobile-web-app-title" content="Fire Chat">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#0088cc">
-    <title>Little Kitten Chat</title>
+    <meta name="theme-color" content="#ff3333">
+    <title>🔥 Fire Chat - Little Kitten</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     
@@ -16,9 +16,9 @@
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     
     <!-- Иконки для разных устройств -->
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/icon-180.png') }}">
-    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='images/icon-32.png') }}">
-    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='images/icon-16.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/icon-180.svg') }}">
+    <link rel="icon" type="image/svg+xml" sizes="32x32" href="{{ url_for('static', filename='images/icon-32.svg') }}">
+    <link rel="icon" type="image/svg+xml" sizes="16x16" href="{{ url_for('static', filename='images/icon-16.svg') }}">
 </head>
 <body>
     <div id="app">
@@ -33,12 +33,10 @@
             <!-- Боковая панель -->
             <div class="sidebar">
                 <!-- Заголовок -->
-                <div class="sidebar">
-                <!-- Заголовок -->
                 <div class="sidebar-header">
                     <div class="user-info">
                         <div class="user-avatar" id="userAvatar">
-                            <img src="{{ url_for('static', filename='images/default-avatar.png') }}" alt="Avatar">
+                            <img src="{{ url_for('static', filename='images/default-avatar.svg') }}" alt="Avatar">
                         </div>
                         <div class="user-details">
                             <div class="user-name" id="userName"></div>
@@ -46,7 +44,7 @@
                         </div>
                     </div>
                     <div class="header-actions">
-                        <button class="icon-btn theme-toggle" id="themeToggleBtn" title="Переключить тему" style="font-size: 18px;">🌙</button>
+                        <button class="icon-btn theme-toggle" id="themeToggleBtn" title="Переключить тему" style="font-size: 18px;">🔥</button>
                         <button class="icon-btn" id="newChatBtn" title="Новый чат">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
@@ -95,7 +93,7 @@
                 <div class="chat-header">
                     <div class="chat-info">
                         <div class="chat-avatar" id="currentChatAvatar">
-                            <img src="{{ url_for('static', filename='images/default-chat.png') }}" alt="Chat">
+                            <img src="{{ url_for('static', filename='images/default-chat.svg') }}" alt="Chat">
                         </div>
                         <div class="chat-details">
                             <div class="chat-name" id="currentChatName">Выберите чат</div>

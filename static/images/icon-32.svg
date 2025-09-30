@@ -1,0 +1,28 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="iconFire32" cx="50%" cy="30%">
+      <stop offset="0%" stop-color="#ffaa00"/>
+      <stop offset="70%" stop-color="#ff6600"/>
+      <stop offset="100%" stop-color="#ff3333"/>
+    </radialGradient>
+    <filter id="iconGlow32">
+      <feGaussianBlur stdDeviation="1" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="32" height="32" rx="6" fill="url(#iconFire32)" filter="url(#iconGlow32)"/>
+  <path d="M8 12 Q8 8 12 8 L20 8 Q24 8 24 12 L24 20 Q24 24 20 24 L16 24 L12 28 L12 24 Q8 24 8 20 Z" fill="white" opacity="0.95"/>
+  <!-- Огненные искры -->
+  <circle cx="6" cy="6" r="1" fill="#ffaa00" opacity="0.8">
+    <animate attributeName="opacity" values="0.8;0.3;0.8" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="26" cy="8" r="0.8" fill="#ff6600" opacity="0.7">
+    <animate attributeName="opacity" values="0.7;0.2;0.7" dur="1.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="28" cy="26" r="0.6" fill="#ff3333" opacity="0.6">
+    <animate attributeName="opacity" values="0.6;0.3;0.6" dur="2.2s" repeatCount="indefinite"/>
+  </circle>
+</svg>

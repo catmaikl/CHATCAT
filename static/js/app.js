@@ -305,7 +305,7 @@ class TelegramMessenger {
             
         div.innerHTML = `
             <div class="chat-avatar">
-                <img src="${chat.avatar || '/static/images/default-chat.png'}" alt="${chat.name}">
+                <img src="${chat.avatar || '/static/images/default-chat.svg'}" alt="${chat.name}">
             </div>
             <div class="chat-details">
                 <div class="chat-header-row">
@@ -339,7 +339,7 @@ class TelegramMessenger {
         // Обновляем заголовок чата
         document.getElementById('currentChatName').textContent = this.currentChat.name;
         document.getElementById('currentChatAvatar').innerHTML = 
-            `<img src="${this.currentChat.avatar || '/static/images/default-chat.png'}" alt="${this.currentChat.name}">`;
+            `<img src="${this.currentChat.avatar || '/static/images/default-chat.svg'}" alt="${this.currentChat.name}">`;
         
         // Загружаем сообщения
         await this.loadChatMessages(chatId);
@@ -511,7 +511,7 @@ class TelegramMessenger {
             div.className = 'contact-item';
             div.innerHTML = `
                 <div class="contact-avatar">
-                    <img src="${contact.avatar || '/static/images/default-avatar.png'}" alt="${contact.first_name}">
+                    <img src="${contact.avatar || '/static/images/default-avatar.svg'}" alt="${contact.first_name}">
                 </div>
                 <div class="contact-details">
                     <div class="contact-name">${contact.first_name} ${contact.last_name || ''}</div>
@@ -683,15 +683,15 @@ class TelegramMessenger {
         const themeToggleBtn = document.getElementById('themeToggleBtn');
         
         if (body.classList.contains('dark-theme')) {
-            // Переключаем на светлую тему
+            // Переключаем на огненную тему
             body.classList.remove('dark-theme');
-            themeToggleBtn.innerHTML = '🌙';
-            localStorage.setItem('theme', 'light');
+            themeToggleBtn.innerHTML = '🔥';
+            localStorage.setItem('theme', 'fire');
         } else {
-            // Переключаем на темную тему
+            // Переключаем на темную огненную тему
             body.classList.add('dark-theme');
-            themeToggleBtn.innerHTML = '☀️';
-            localStorage.setItem('theme', 'dark');
+            themeToggleBtn.innerHTML = '🌋';
+            localStorage.setItem('theme', 'dark-fire');
         }
     }
 
@@ -699,15 +699,15 @@ class TelegramMessenger {
         const savedTheme = localStorage.getItem('theme');
         const themeToggleBtn = document.getElementById('themeToggleBtn');
         
-        if (savedTheme === 'dark') {
+        if (savedTheme === 'dark-fire') {
             document.body.classList.add('dark-theme');
             if (themeToggleBtn) {
-                themeToggleBtn.innerHTML = '☀️';
+                themeToggleBtn.innerHTML = '🌋';
             }
         } else {
             document.body.classList.remove('dark-theme');
             if (themeToggleBtn) {
-                themeToggleBtn.innerHTML = '🌙';
+                themeToggleBtn.innerHTML = '🔥';
             }
         }
     }

@@ -1,0 +1,49 @@
+<svg width="180" height="180" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="iconFire180" cx="50%" cy="30%">
+      <stop offset="0%" stop-color="#ffaa00"/>
+      <stop offset="30%" stop-color="#ff6600"/>
+      <stop offset="70%" stop-color="#ff3333"/>
+      <stop offset="100%" stop-color="#cc0000"/>
+    </radialGradient>
+    <filter id="iconGlow180">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="180" height="180" rx="30" fill="url(#iconFire180)" filter="url(#iconGlow180)"/>
+  <path d="M45 67.5 Q45 45 67.5 45 L112.5 45 Q135 45 135 67.5 L135 112.5 Q135 135 112.5 135 L90 135 L67.5 157.5 L67.5 135 Q45 135 45 112.5 Z" fill="white" opacity="0.95"/>
+  
+  <!-- Большие огненные языки -->
+  <path d="M25 25 Q18 40 25 55 Q32 40 25 25" fill="#ffaa00" opacity="0.7">
+    <animateTransform attributeName="transform" type="rotate" values="0 25 40;20 25 40;0 25 40" dur="4s" repeatCount="indefinite"/>
+  </path>
+  <path d="M90 18 Q83 33 90 48 Q97 33 90 18" fill="#ff6600" opacity="0.8">
+    <animateTransform attributeName="transform" type="rotate" values="0 90 33;-15 90 33;0 90 33" dur="3.5s" repeatCount="indefinite"/>
+  </path>
+  <path d="M155 30 Q148 45 155 60 Q162 45 155 30" fill="#ff3333" opacity="0.6">
+    <animateTransform attributeName="transform" type="rotate" values="0 155 45;18 155 45;0 155 45" dur="4.2s" repeatCount="indefinite"/>
+  </path>
+  
+  <!-- Плавающие угольки -->
+  <circle cx="30" cy="150" r="4" fill="#ffaa00" opacity="0.6">
+    <animate attributeName="cy" values="150;120;150" dur="5s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.6;0.2;0.6" dur="5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="150" cy="145" r="3.5" fill="#ff6600" opacity="0.7">
+    <animate attributeName="cy" values="145;115;145" dur="4.5s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.7;0.3;0.7" dur="4.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="160" cy="160" r="2.5" fill="#ff3333" opacity="0.5">
+    <animate attributeName="cy" values="160;140;160" dur="3.8s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.5;0.2;0.5" dur="3.8s" repeatCount="indefinite"/>
+  </circle>
+  
+  <!-- Точки в сообщении -->
+  <circle cx="75" cy="82.5" r="5" fill="#ff3333" opacity="0.9"/>
+  <circle cx="90" cy="82.5" r="5" fill="#ff6600" opacity="0.9"/>
+  <circle cx="105" cy="82.5" r="5" fill="#ffaa00" opacity="0.9"/>
+</svg>
