@@ -6,6 +6,7 @@ class TelegramMessenger {
         this.chats = [];
         this.contacts = [];
         this.isConnected = false;
+        this.typingTimeout = null;
         
         this.initializeApp();
     }
@@ -39,7 +40,6 @@ class TelegramMessenger {
 
     showAuthInterface() {
         document.getElementById('loadingScreen').style.display = 'none';
-        // Перенаправляем на страницу аутентификации
         window.location.href = '/';
     }
 
@@ -103,6 +103,7 @@ class TelegramMessenger {
         // Настройки
         document.getElementById('logoutBtn').addEventListener('click', () => this.logout());
         document.getElementById('saveSettingsBtn').addEventListener('click', () => this.saveSettings());
+        document.getElementById('changePasswordBtn').addEventListener('click', () => this.changePassword());
 
         // Мобильная навигация
         this.initializeMobileNavigation();
@@ -114,6 +115,36 @@ class TelegramMessenger {
         this.preventIOSZoom();
     }
 
+    async changePassword() {
+        try {
+            const currentPassword = prompt('Введите текущий пароль:');
+            if (!currentPassword) return;
+            const newPassword = prompt('Введите новый пароль (минимум 6 символов):');
+            if (!newPassword || newPassword.length < 6) {
+                alert('Пароль слишком короткий!');
+                return;
+            }
+            const response = await fetch('/api/user/change-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    current_password: currentPassword,
+                    new_password: newPassword
+                })
+            });
+            const data = await response.json();
+            if (data.status === 'success') {
+                alert('Пароль успешно изменён!');
+            } else {
+                alert('Ошибка: ' + data.message);
+            }
+        } catch (error) {
+            alert('Ошибка смены пароля');
+        }
+    }
+
     initializeMobileNavigation() {
         // Создаем оверлей для мобильной навигации
         const overlay = document.createElement('div');
@@ -122,39 +153,16 @@ class TelegramMessenger {
         document.body.appendChild(overlay);
 
         // Обработчик для кнопки меню в заголовке чата
-        document.addEventListener('click', (e) => {
-            const chatHeader = e.target.closest('.chat-header');
-            if (chatHeader && window.innerWidth <= 768) {
-                const rect = e.target.getBoundingClientRect();
-                if (rect.left <= 50) { // Клик в области кнопки меню
-                    this.toggleMobileSidebar();
-                }
+        const chatHeader = document.querySelector('.chat-header');
+        if (chatHeader) {
+            const menuBtn = chatHeader.querySelector('.menu-btn');
+            if (menuBtn) {
+                menuBtn.addEventListener('click', () => this.toggleMobileSidebar());
             }
-        });
+        }
 
-        // Обработчик для кнопки закрытия в боковой панели
-        document.addEventListener('click', (e) => {
-            const sidebarHeader = e.target.closest('.sidebar-header');
-            if (sidebarHeader && window.innerWidth <= 768) {
-                const rect = e.target.getBoundingClientRect();
-                const headerRect = sidebarHeader.getBoundingClientRect();
-                if (rect.right >= headerRect.right - 50) { // Клик в области кнопки закрытия
-                    this.closeMobileSidebar();
-                }
-            }
-        });
-
-        // За��рытие боковой панели при клике на оверлей
-        overlay.addEventListener('click', () => {
-            this.closeMobileSidebar();
-        });
-
-        // Закрытие боковой панели при выборе чата на мобильных
-        document.addEventListener('click', (e) => {
-            if (window.innerWidth <= 768 && e.target.closest('.chat-item')) {
-                setTimeout(() => this.closeMobileSidebar(), 300);
-            }
-        });
+        // Закрытие по клику на оверлей
+        overlay.addEventListener('click', () => this.closeMobileSidebar());
     }
 
     toggleMobileSidebar() {
@@ -187,31 +195,35 @@ class TelegramMessenger {
     }
 
     handleResize() {
-        // Закрываем мобильную боковую панель при изменении размера на десктоп
         if (window.innerWidth > 768) {
             this.closeMobileSidebar();
         }
     }
 
     preventIOSZoom() {
-        // Предотвращаем зум на iOS при фокусе на input элементах
         const inputs = document.querySelectorAll('input, textarea');
         inputs.forEach(input => {
             input.addEventListener('focus', () => {
                 if (this.isIOS()) {
-                    document.querySelector('meta[name=viewport]').setAttribute(
-                        'content', 
-                        'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no'
-                    );
+                    const viewport = document.querySelector('meta[name=viewport]');
+                    if (viewport) {
+                        viewport.setAttribute(
+                            'content', 
+                            'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no'
+                        );
+                    }
                 }
             });
             
             input.addEventListener('blur', () => {
                 if (this.isIOS()) {
-                    document.querySelector('meta[name=viewport]').setAttribute(
-                        'content', 
-                        'width=device-width, initial-scale=1'
-                    );
+                    const viewport = document.querySelector('meta[name=viewport]');
+                    if (viewport) {
+                        viewport.setAttribute(
+                            'content', 
+                            'width=device-width, initial-scale=1'
+                        );
+                    }
                 }
             });
         });
@@ -222,7 +234,11 @@ class TelegramMessenger {
     }
 
     initializeSocket() {
-        // Подключаемся с поддержкой cookies/сессии и надёжными транспортами
+        if (typeof io === 'undefined') {
+            console.error('Socket.io not loaded');
+            return;
+        }
+
         this.socket = io({
             withCredentials: true,
             transports: ['websocket', 'polling'],
@@ -310,6 +326,8 @@ class TelegramMessenger {
 
     renderChatsList() {
         const chatsList = document.getElementById('chatsList');
+        if (!chatsList) return;
+        
         chatsList.innerHTML = '';
 
         this.chats.forEach(chat => {
@@ -332,7 +350,7 @@ class TelegramMessenger {
             
         div.innerHTML = `
             <div class="chat-avatar">
-                <img src="${chat.avatar || '/static/images/default-chat.svg'}" alt="${chat.name}">
+                <img src="${chat.avatar || '/static/images/default-chat.svg'}" alt="${chat.name}" onerror="this.src='/static/images/default-chat.svg'">
             </div>
             <div class="chat-details">
                 <div class="chat-header-row">
@@ -350,12 +368,10 @@ class TelegramMessenger {
     }
 
     async selectChat(chatId) {
-        // Убираем выделение у всех чатов
         document.querySelectorAll('.chat-item').forEach(item => {
             item.classList.remove('active');
         });
         
-        // Выделяем выбранный чат
         const chatElement = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
         if (chatElement) {
             chatElement.classList.add('active');
@@ -363,15 +379,21 @@ class TelegramMessenger {
         
         this.currentChat = this.chats.find(chat => chat.id === chatId);
         
-        // Обновляем заголовок чата
-        document.getElementById('currentChatName').textContent = this.currentChat.name;
-        document.getElementById('currentChatAvatar').innerHTML = 
-            `<img src="${this.currentChat.avatar || '/static/images/default-chat.svg'}" alt="${this.currentChat.name}">`;
+        if (this.currentChat) {
+            const currentChatName = document.getElementById('currentChatName');
+            const currentChatAvatar = document.getElementById('currentChatAvatar');
+            
+            if (currentChatName) {
+                currentChatName.textContent = this.currentChat.name;
+            }
+            if (currentChatAvatar) {
+                currentChatAvatar.innerHTML = 
+                    `<img src="${this.currentChat.avatar || '/static/images/default-chat.svg'}" alt="${this.currentChat.name}">`;
+            }
+        }
         
-        // Загружаем сообщения
         await this.loadChatMessages(chatId);
         
-        // Присоединяемся к комнате чата
         if (this.socket) {
             this.socket.emit('join_chat', { chat_id: chatId });
         }
@@ -402,6 +424,8 @@ class TelegramMessenger {
 
     renderMessages(messages) {
         const messagesList = document.getElementById('messagesList');
+        if (!messagesList) return;
+        
         messagesList.innerHTML = '';
 
         messages.forEach(message => {
@@ -418,17 +442,15 @@ class TelegramMessenger {
         
         const time = this.formatTime(new Date(message.created_at));
         
-        // Присваиваем data-атрибуты для последующих действий (контекстное меню, реакции)
         div.dataset.messageId = message.id;
         div.dataset.senderId = message.sender_id;
         
-        // Блок ответа, если есть
         let replyBlock = '';
         if (message.reply_to) {
             const replyText = this.escapeHtml(message.reply_to.content || '');
             replyBlock = `
                 <div class="message-reply">
-                    <div class="reply-author">${message.reply_to.sender_id === this.currentUser.id ? 'Вы' : ''}</div>
+                    <div class="reply-author">${message.reply_to.sender_id === this.currentUser.id ? 'Вы' : 'Собеседник'}</div>
                     <div class="reply-preview">${replyText}</div>
                 </div>
             `;
@@ -449,6 +471,8 @@ class TelegramMessenger {
 
     async sendMessage() {
         const input = document.getElementById('messageInput');
+        if (!input) return;
+        
         const content = input.value.trim();
         
         if (!content || !this.currentChat) return;
@@ -458,7 +482,7 @@ class TelegramMessenger {
                 content: content,
                 content_type: 'text'
             };
-            // Если выбран ответ, добавляем reply_to_id
+            
             if (window.chatFeatures && window.chatFeatures.replyToId) {
                 payload.reply_to_id = window.chatFeatures.replyToId;
             }
@@ -476,12 +500,10 @@ class TelegramMessenger {
             if (data.status === 'success') {
                 input.value = '';
                 this.adjustTextareaHeight(input);
-                // Если был ответ, очищаем панель ответа
-                if (window.chatFeatures) {
+                
+                if (window.chatFeatures && window.chatFeatures.clearReply) {
                     window.chatFeatures.clearReply();
                 }
-                
-                // Сообщение будет добавлено через WebSocket
             }
         } catch (error) {
             console.error('Failed to send message:', error);
@@ -490,12 +512,14 @@ class TelegramMessenger {
 
     handleNewMessage(data) {
         if (data.chat_id === this.currentChat?.id) {
-            const messageElement = this.createMessageElement(data);
-            document.getElementById('messagesList').appendChild(messageElement);
-            this.scrollToBottom();
+            const messagesList = document.getElementById('messagesList');
+            if (messagesList) {
+                const messageElement = this.createMessageElement(data);
+                messagesList.appendChild(messageElement);
+                this.scrollToBottom();
+            }
         }
         
-        // Обновляем список чатов
         this.loadChats();
     }
 
@@ -518,31 +542,53 @@ class TelegramMessenger {
     }
 
     showTypingIndicator(userId) {
+        const typingText = document.getElementById('typingText');
+        const typingIndicator = document.getElementById('typingIndicator');
+        
+        if (!typingText || !typingIndicator) return;
+        
         const user = this.contacts.find(contact => contact.id === userId);
         if (user) {
-            document.getElementById('typingText').textContent = `${user.first_name} печатает...`;
-            document.getElementById('typingIndicator').style.display = 'flex';
+            typingText.textContent = `${user.first_name} печатает...`;
+            typingIndicator.style.display = 'flex';
         }
     }
 
     hideTypingIndicator(userId) {
-        document.getElementById('typingIndicator').style.display = 'none';
+        const typingIndicator = document.getElementById('typingIndicator');
+        if (typingIndicator) {
+            typingIndicator.style.display = 'none';
+        }
     }
 
     showNewChatModal() {
-        document.getElementById('modalOverlay').style.display = 'flex';
-        document.getElementById('newChatModal').style.display = 'block';
-        this.renderNewChatContacts();
+        const modalOverlay = document.getElementById('modalOverlay');
+        const newChatModal = document.getElementById('newChatModal');
+        
+        if (modalOverlay && newChatModal) {
+            modalOverlay.style.display = 'flex';
+            newChatModal.style.display = 'block';
+            this.renderNewChatContacts();
+        }
     }
 
     showSettingsModal() {
-        document.getElementById('modalOverlay').style.display = 'flex';
-        document.getElementById('settingsModal').style.display = 'block';
-        this.loadUserSettings();
+        const modalOverlay = document.getElementById('modalOverlay');
+        const settingsModal = document.getElementById('settingsModal');
+        
+        if (modalOverlay && settingsModal) {
+            modalOverlay.style.display = 'flex';
+            settingsModal.style.display = 'block';
+            this.loadUserSettings();
+        }
     }
 
     hideModals() {
-        document.getElementById('modalOverlay').style.display = 'none';
+        const modalOverlay = document.getElementById('modalOverlay');
+        if (modalOverlay) {
+            modalOverlay.style.display = 'none';
+        }
+        
         document.querySelectorAll('.modal').forEach(modal => {
             modal.style.display = 'none';
         });
@@ -550,9 +596,10 @@ class TelegramMessenger {
 
     renderNewChatContacts() {
         const contactsList = document.getElementById('newChatContacts');
+        if (!contactsList) return;
+        
         contactsList.innerHTML = '';
 
-        // Кнопка добавления нового контакта
         const addContactDiv = document.createElement('div');
         addContactDiv.className = 'contact-item add-contact';
         addContactDiv.innerHTML = `
@@ -569,13 +616,12 @@ class TelegramMessenger {
         addContactDiv.addEventListener('click', () => this.showAddContactForm());
         contactsList.appendChild(addContactDiv);
 
-        // Существующие контакты
         this.contacts.forEach(contact => {
             const div = document.createElement('div');
             div.className = 'contact-item';
             div.innerHTML = `
                 <div class="contact-avatar">
-                    <img src="${contact.avatar || '/static/images/default-avatar.svg'}" alt="${contact.first_name}">
+                    <img src="${contact.avatar || '/static/images/default-avatar.svg'}" alt="${contact.first_name}" onerror="this.src='/static/images/default-avatar.svg'">
                 </div>
                 <div class="contact-details">
                     <div class="contact-name">${contact.first_name} ${contact.last_name || ''}</div>
@@ -613,7 +659,6 @@ class TelegramMessenger {
                 alert('Контакт успешно добавлен!');
                 await this.loadContacts();
                 this.hideModals();
-                // Если создался чат, переходим к нему
                 if (data.chat_id) {
                     await this.loadChats();
                     this.selectChat(data.chat_id);
@@ -629,7 +674,6 @@ class TelegramMessenger {
 
     async startChatWithContact(contactId) {
         try {
-            // Сначала проверяем, есть ли уже чат с этим контактом
             const existingChat = this.chats.find(chat => 
                 !chat.is_group && chat.members && chat.members.some(member => member.id === contactId)
             );
@@ -640,10 +684,8 @@ class TelegramMessenger {
                 return;
             }
             
-            // Если чата нет, создаем новый через добавление контакта
             const contact = this.contacts.find(c => c.id === contactId);
             if (contact) {
-                // Используем существующий метод добавления контакта, который создает чат
                 const response = await fetch('/api/contacts/add', {
                     method: 'POST',
                     headers: {
@@ -674,23 +716,33 @@ class TelegramMessenger {
 
     async loadUserSettings() {
         if (this.currentUser) {
-            document.getElementById('profileFirstName').value = this.currentUser.first_name || '';
-            document.getElementById('profileLastName').value = this.currentUser.last_name || '';
-            document.getElementById('profileBio').value = this.currentUser.bio || '';
+            const firstNameInput = document.getElementById('profileFirstName');
+            const lastNameInput = document.getElementById('profileLastName');
+            const bioInput = document.getElementById('profileBio');
+            
+            if (firstNameInput) firstNameInput.value = this.currentUser.first_name || '';
+            if (lastNameInput) lastNameInput.value = this.currentUser.last_name || '';
+            if (bioInput) bioInput.value = this.currentUser.bio || '';
         }
     }
 
     async saveSettings() {
         try {
+            const firstNameInput = document.getElementById('profileFirstName');
+            const lastNameInput = document.getElementById('profileLastName');
+            const bioInput = document.getElementById('profileBio');
+            
+            if (!firstNameInput || !lastNameInput || !bioInput) return;
+            
             const response = await fetch('/api/user/profile', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    first_name: document.getElementById('profileFirstName').value,
-                    last_name: document.getElementById('profileLastName').value,
-                    bio: document.getElementById('profileBio').value
+                    first_name: firstNameInput.value,
+                    last_name: lastNameInput.value,
+                    bio: bioInput.value
                 })
             });
             
@@ -716,20 +768,21 @@ class TelegramMessenger {
     }
 
     switchTab(tabName) {
-        // Убираем активный класс у всех вкладок
         document.querySelectorAll('.tab').forEach(tab => {
             tab.classList.remove('active');
         });
         
-        // Добавляем активный класс выбранной вкладке
-        document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add('active');
-        
-        // Здесь можно добавить логику загрузки данных для вкладки
+        const targetTab = document.querySelector(`.tab[data-tab="${tabName}"]`);
+        if (targetTab) {
+            targetTab.classList.add('active');
+        }
     }
 
     scrollToBottom() {
         const container = document.getElementById('messagesContainer');
-        container.scrollTop = container.scrollHeight;
+        if (container) {
+            container.scrollTop = container.scrollHeight;
+        }
     }
 
     formatTime(date) {
@@ -752,7 +805,6 @@ class TelegramMessenger {
     }
 
     updateUserOnlineStatus(userId, isOnline) {
-        // Обновляем статус в списке контактов и чатов
         const contactElements = document.querySelectorAll(`[data-user-id="${userId}"]`);
         contactElements.forEach(element => {
             const statusElement = element.querySelector('.contact-status, .chat-status');
@@ -767,13 +819,13 @@ class TelegramMessenger {
         const body = document.body;
         const themeToggleBtn = document.getElementById('themeToggleBtn');
         
+        if (!themeToggleBtn) return;
+        
         if (body.classList.contains('dark-theme')) {
-            // Переключаем на огненную тему
             body.classList.remove('dark-theme');
             themeToggleBtn.innerHTML = '🔥';
             localStorage.setItem('theme', 'fire');
         } else {
-            // Переключаем на темную огненную тему
             body.classList.add('dark-theme');
             themeToggleBtn.innerHTML = '🌋';
             localStorage.setItem('theme', 'dark-fire');
@@ -801,4 +853,4 @@ class TelegramMessenger {
 // Инициализация приложения
 document.addEventListener('DOMContentLoaded', () => {
     window.messenger = new TelegramMessenger();
-})
+});
